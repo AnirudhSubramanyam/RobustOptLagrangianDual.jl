@@ -1,3 +1,17 @@
+using JuMP
+using TimerOutputs
+using Printf, DelimitedFiles, Distances
+
+const solver = "Gurobi"
+const THREADLIM = 12
+if solver == "Gurobi" && !@isdefined(GUROBI_ENV)
+    using Gurobi
+    const GUROBI_ENV = Gurobi.Env()
+end
+if solver == "Mosek"
+    using Mosek, MosekTools
+end
+
 include("problem.jl")
 include("facility.jl")
 

@@ -1,6 +1,3 @@
-using DelimitedFiles
-using Distances
-
 struct FacilityLocation <: Problem
     NumFac::Int
     NumCust::Int

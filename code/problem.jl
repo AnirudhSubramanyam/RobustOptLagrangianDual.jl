@@ -1,12 +1,18 @@
-using JuMP
-using Mosek, MosekTools
-using TimerOutputs
-using Printf
-
 abstract type Problem end
 
 function initializeJuMPModel()
-    return Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_IPAR_LOG" => 0))
+    if solver == "Mosek"
+        return Model(optimizer_with_attributes(
+            Mosek.Optimizer,
+            "MSK_IPAR_LOG" => 0,
+            "MSK_IPAR_NUM_THREADS" => THREADLIM))
+    end
+    if solver == "Gurobi"
+        return Model(optimizer_with_attributes(
+            with_optimizer(Gurobi.Optimizer, GUROBI_ENV),
+            "OutputFlag" => 0,
+            "Threads" => THREADLIM))
+    end
 end
 
 function solve_MP(MP::JuMP.Model)
