@@ -1,5 +1,18 @@
 abstract type Problem end
 
+@enum(SubproblemType,
+    KKT,
+    Penalty,
+    LinearizedDual,
+    IndicatorDual,
+)
+@enum(MasterType,
+    CCG,
+    BD,
+)
+gap(ub, lb) = isinf(ub) ? Inf : ((ub - lb)/ub)
+
+
 function initializeJuMPModel()
     if solver == "Mosek"
         return Model(optimizer_with_attributes(
@@ -15,36 +28,33 @@ function initializeJuMPModel()
     end
 end
 
-function solve_MP(MP::JuMP.Model)
+function solve_MP(problem::Problem, MP::JuMP.Model)
     optimize!(MP)
     status = termination_status(MP)
-    if status != MOI.OPTIMAL
-        @error("could not solve master problem to optimality. status = $(status)")
+    if problem.CompleteRecourse
+        if status != MOI.OPTIMAL
+            @error("could not solve master problem to optimality. status = $(status)")
+        end
+    else
+        if status ∉ [MOI.OPTIMAL, MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
+            @error("could not solve master problem to optimality or infeasibility. status = $(status)")
+        end
     end
 end
 
-function solve_SP(SP::JuMP.Model)
+function solve_SP(problem::Problem, SP::JuMP.Model)
     optimize!(SP)
     status = termination_status(SP)
-    if status != MOI.OPTIMAL
-        @error("could not solve subproblem to optimality. status = $(status)")
+    if problem.CompleteRecourse
+        if status != MOI.OPTIMAL
+            @error("could not solve subproblem to optimality. status = $(status)")
+        end
+    else
+        if status ∉ [MOI.OPTIMAL, MOI.SOLUTION_LIMIT, MOI.OBJECTIVE_LIMIT]
+            @error("could not solve subproblem to optimality, solution_limit, or objective_limit. status = $(status)")
+        end
     end
 end
-
-
-gap(ub, lb) = (ub - lb)/ub
-
-
-@enum(SubproblemType,
-    KKT,
-    Penalty,
-    LinearizedDual,
-    IndicatorDual,
-)
-@enum(MasterType,
-    CCG,
-    BD,
-)
 
 function run_default(
     problem::Problem,

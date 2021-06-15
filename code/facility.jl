@@ -15,6 +15,7 @@ struct FacilityLocation <: Problem
     Mβ::Vector{Float64}
     Mx::Dict{Tuple{Int, Int}, Float64}
     Mu::Vector{Float64}
+    CompleteRecourse::Bool
 
     function FacilityLocation(filename::String, budget::Int, omega_paper::Bool = true, pvalue = 1.0)
         (data, header) = readdlm(filename; header=true)
@@ -68,7 +69,8 @@ struct FacilityLocation <: Problem
             Mα,
             Mβ,
             Mx,
-            Mu)
+            Mu,
+            true)
     end
 end
 
