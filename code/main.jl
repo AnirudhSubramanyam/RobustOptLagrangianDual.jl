@@ -15,6 +15,7 @@ end
 include("problem.jl")
 include("facility.jl")
 include("network.jl")
+include("algorithms.jl")
 
 function test_facility_location(instance::String)
     budget = 2
