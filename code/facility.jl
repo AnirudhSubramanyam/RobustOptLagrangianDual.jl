@@ -109,6 +109,10 @@ function update_master(FLP::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, ma
 
     if master == BD
         if subproblem == Penalty
+            @warn("to do: optimality cut formuation not finalized for $(master)-$(subproblem)")
+        end
+
+        if subproblem == Penalty
             α = JuMP.value.(SP[:α])
             β = JuMP.value.(SP[:β])
             @constraint(MP,
@@ -118,7 +122,7 @@ function update_master(FLP::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, ma
             )
         end
 
-        if subproblem ∈ [LinearizedDual, IndicatorDual]
+        if subproblem ∈ [Penalty, LinearizedDual, IndicatorDual]
             α = JuMP.value.(SP[:α])
             β = JuMP.value.(SP[:β])
             z = JuMP.value.(SP[:z])
