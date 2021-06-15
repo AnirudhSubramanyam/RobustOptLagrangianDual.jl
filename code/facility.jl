@@ -301,16 +301,10 @@ function build_sp_indicator_dual(FLP::FacilityLocation, MP::JuMP.Model)
 
     # indicators
     @constraint(SP, [j in FLP.Facilities],
-        z[j] => {βtimes1minusz[j] <= 0}
+        z[j] => {βtimes1minusz[j] == 0}
     )
     @constraint(SP, [j in FLP.Facilities],
-        !z[j] => {βtimes1minusz[j] >= β[j]}
-    )
-    @constraint(SP, [j in FLP.Facilities],
-        βtimes1minusz[j] <= β[j]
-    )
-    @constraint(SP, [j in FLP.Facilities],
-        βtimes1minusz[j] >= 0
+        !z[j] => {βtimes1minusz[j] == β[j]}
     )
 
     return SP
