@@ -12,6 +12,7 @@ function initializeJuMPModel()
         return Model(optimizer_with_attributes(
             with_optimizer(Gurobi.Optimizer, GUROBI_ENV),
             "OutputFlag" => 0,
+            "MIPGap" => 0,
             "Threads" => THREADLIM))
     end
 end
@@ -59,7 +60,7 @@ function run_default(
     @timeit timer algname begin
         LB = -Inf
         UB = +Inf
-        epsilon = 1e-3 # optimality tolerance
+        epsilon = 1e-4 # optimality tolerance
         start_t = time()
 
         @timeit timer "Compute penalty parameter" begin
@@ -161,7 +162,7 @@ function run_adaptive_penalty_outer(
     @timeit timer algname begin
         LB = -Inf
         UB = +Inf
-        epsilon = 1e-3
+        epsilon = 1e-4
         rho = 1.0
         start_t = time()
 
@@ -188,6 +189,10 @@ function run_adaptive_penalty_outer(
                     SP = build_sp(problem, MP, subproblemtype, rho)
                 end
                 @timeit timer "Optimize Subproblem" begin
+                    if !problem.CompleteRecourse && solver == "Gurobi"
+                        JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
+                        JuMP.set_optimizer_attribute(SP, "Cutoff", epsilon)
+                    end
                     solve_SP(problem, SP)
                 end
                 if problem.CompleteRecourse
