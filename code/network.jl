@@ -12,6 +12,7 @@ struct NetworkDesign <: Problem
     Demand::Dict{String,Float64}
     Multiplier::Float64
     budget::Int
+    ObjScale::Float64
     CompleteRecourse::Bool
 
     function NetworkDesign(filename::String, Multiplier::Float64, budget::Int)
@@ -70,6 +71,13 @@ struct NetworkDesign <: Problem
             Demand[tgt] += demand
             Demand[src] -= demand
         end
+        ObjScale = max(1.0, maximum(abs.(values(Demand))))
+        for i in Nodes
+            Demand[i] /= ObjScale
+        end
+        for e in Edges
+            PreInstalledCap[e] /= ObjScale
+        end
         NumNodes = length(Nodes)
         NumEdges = length(Edges)
 
@@ -86,6 +94,7 @@ struct NetworkDesign <: Problem
             Demand,
             Multiplier,
             budget,
+            ObjScale,
             false)
     end
 end
@@ -116,7 +125,7 @@ function solve_deterministic_problem(ND::NetworkDesign)
 
     optimize!(m)
 
-    return objective_value(m)
+    return ND.ObjScale * objective_value(m)
 end
 
 function init_master(ND::NetworkDesign)
@@ -196,7 +205,7 @@ function build_sp_indicator_dual(ND::NetworkDesign, MP::JuMP.Model, feasibility:
 
     # uncertainty set
     @constraint(SP, sum(z[e] for e in ND.Edges) <= ND.budget)
-    @constraint(SP, [i in ND.Nodes; abs(ND.Demand[i]) > 1e-3],
+    @constraint(SP, [i in ND.Nodes; abs(ND.ObjScale*ND.Demand[i]) > 1e-3],
         sum(z[e]-1 for e in ND.Edges if ND.Dest[e] == i) + sum(z[e]-1 for e in ND.Edges if ND.Orig[e] == i) <= - 1
     )
 
@@ -245,7 +254,7 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
     if feasibility
         if solver == "Gurobi"
             JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
-            JuMP.set_optimizer_attribute(SP, "Cutoff", 1e-4)
+            JuMP.set_optimizer_attribute(SP, "Cutoff", 1e-3)
         end
         @objective(SP, Max,
             +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
@@ -263,7 +272,7 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
 
     # uncertainty set
     @constraint(SP, sum(z[e] for e in ND.Edges) <= ND.budget)
-    @constraint(SP, [i in ND.Nodes; abs(ND.Demand[i]) > 1e-3],
+    @constraint(SP, [i in ND.Nodes; abs(ND.ObjScale*ND.Demand[i]) > 1e-3],
         sum(z[e]-1 for e in ND.Edges if ND.Dest[e] == i) + sum(z[e]-1 for e in ND.Edges if ND.Orig[e] == i) <= - 1
     )
 

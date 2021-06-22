@@ -15,6 +15,7 @@ struct FacilityLocation <: Problem
     Mβ::Vector{Float64}
     Mx::Dict{Tuple{Int, Int}, Float64}
     Mu::Vector{Float64}
+    ObjScale::Float64
     CompleteRecourse::Bool
 
     function FacilityLocation(filename::String, budget::Int, omega_paper::Bool = true, pvalue = 1.0)
@@ -70,6 +71,7 @@ struct FacilityLocation <: Problem
             Mβ,
             Mx,
             Mu,
+            1.0,
             true)
     end
 end

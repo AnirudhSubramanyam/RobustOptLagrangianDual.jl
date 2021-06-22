@@ -59,7 +59,7 @@ function run_default(
     @timeit timer algname begin
         LB = -Inf
         UB = +Inf
-        epsilon = 0.01/100.0 # optimality tolerance
+        epsilon = 1e-3 # optimality tolerance
         start_t = time()
 
         @timeit timer "Compute penalty parameter" begin
@@ -80,7 +80,7 @@ function run_default(
                     solve_MP(problem, MP)
                 end
                 if problem.CompleteRecourse || termination_status(MP) == MOI.OPTIMAL
-                    LB = objective_value(MP)
+                    LB = problem.ObjScale * objective_value(MP)
                 else
                     LB = +Inf
                     @warn("infeasible problem instance. Quitting main loop.")
@@ -93,7 +93,7 @@ function run_default(
                     solve_SP(problem, SP)
                 end
                 if problem.CompleteRecourse
-                    UB = min(UB, objective_value(SP))
+                    UB = min(UB, problem.ObjScale*objective_value(SP))
                 elseif termination_status(SP) == MOI.OBJECTIVE_LIMIT || objective_value(SP) <= epsilon
                     @timeit timer "Build Subproblem" begin
                         SP = build_sp(problem, MP, subproblemtype, rho, false)
@@ -101,7 +101,7 @@ function run_default(
                     @timeit timer "Optimize Subproblem" begin
                         solve_SP(problem, SP)
                     end
-                    UB = min(UB, objective_value(SP))
+                    UB = min(UB, problem.ObjScale*objective_value(SP))
                 end
 
                 optgap = gap(UB, LB)
@@ -148,9 +148,8 @@ function run_adaptive_penalty_outer(
             @timeit timer "Optimize Second-Stage Problem" begin
                 step = solve_second_stage_problem_penalty(problem, MP, SP_UB, rho_UB)
             end
-            @printf("step=%.4f\n", step)
             if step <= epsilon
-                UB_true = min(UB_true, objective_value(SP_UB))
+                UB_true = min(UB_true, problem.ObjScale*objective_value(SP_UB))
                 break
             end
             rho_UB *= 2.0
@@ -162,7 +161,7 @@ function run_adaptive_penalty_outer(
     @timeit timer algname begin
         LB = -Inf
         UB = +Inf
-        epsilon = 1e-4
+        epsilon = 1e-3
         rho = 1.0
         start_t = time()
 
@@ -179,7 +178,7 @@ function run_adaptive_penalty_outer(
                     solve_MP(problem, MP)
                 end
                 if problem.CompleteRecourse || termination_status(MP) == MOI.OPTIMAL
-                    LB = objective_value(MP)
+                    LB = problem.ObjScale*objective_value(MP)
                 else
                     LB = +Inf
                     @warn("infeasible problem instance. Quitting main loop.")
@@ -192,7 +191,7 @@ function run_adaptive_penalty_outer(
                     solve_SP(problem, SP)
                 end
                 if problem.CompleteRecourse
-                    UB_inner_loop = min(UB_inner_loop, objective_value(SP))
+                    UB_inner_loop = min(UB_inner_loop, problem.ObjScale*objective_value(SP))
                 elseif termination_status(SP) == MOI.OBJECTIVE_LIMIT || objective_value(SP) <= epsilon
                     @timeit timer "Build Subproblem" begin
                         SP = build_sp(problem, MP, subproblemtype, rho, false)
@@ -200,10 +199,8 @@ function run_adaptive_penalty_outer(
                     @timeit timer "Optimize Subproblem" begin
                         solve_SP(problem, SP)
                     end
-                    UB_inner_loop = min(UB_inner_loop, objective_value(SP))
-                    @show(UB_inner_loop)
+                    UB_inner_loop = min(UB_inner_loop, problem.ObjScale*objective_value(SP))
                 end
-                @show(objective_value(SP))
 
                 if gap(UB_inner_loop, LB) > epsilon
                     @timeit timer "Build Master" begin
@@ -225,7 +222,7 @@ function run_adaptive_penalty_outer(
                 optgap = gap(UB, LB)
                 @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec rho = %8.2f\n", iter, LB, UB, optgap*100.0, time() - start_t, rho)
 
-                if step <= epsilon || optgap <= epsilon
+                if optgap <= epsilon
                     break
                 end
                 rho *= 2.0
