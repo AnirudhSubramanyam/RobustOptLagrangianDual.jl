@@ -138,7 +138,7 @@ function update_master(FLP::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, ma
     end
 end
 
-function build_sp_kkt(FLP::FacilityLocation, MP::JuMP.Model)
+function build_sp_linearized_kkt(FLP::FacilityLocation, MP::JuMP.Model)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
 
@@ -316,9 +316,9 @@ function build_sp_indicator_dual(FLP::FacilityLocation, MP::JuMP.Model)
     return SP
 end
 
-function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
-    if subproblem == KKT
-        return build_sp_kkt(FLP, MP)
+function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0, feasibility::Bool = true)
+    if subproblem == LinearizedKKT
+        return build_sp_linearized_kkt(FLP, MP)
     end
 
     if subproblem == Penalty

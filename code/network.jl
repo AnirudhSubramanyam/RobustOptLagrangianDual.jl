@@ -284,7 +284,7 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
 end
 
 function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0, feasibility::Bool=true)
-    if subproblem == KKT
+    if subproblem == LinearizedKKT
         @assert false
     end
 

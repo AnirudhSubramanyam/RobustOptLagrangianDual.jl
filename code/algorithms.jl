@@ -53,7 +53,7 @@ function run_default(
     timer::TimerOutput = TimerOutputs.get_defaulttimer(),
 )
     algname = "$(subproblemtype)-$(masterproblemtype)"    
-    if subproblemtype == KKT && masterproblemtype == BD
+    if subproblemtype == LinearizedKKT && masterproblemtype == BD
         @error("$algname is not guaranteed to converge.")
         return 0, -Inf, +Inf, 0.0
     end

@@ -1,10 +1,10 @@
 abstract type Problem end
 
 @enum(SubproblemType,
-    KKT,
-    Penalty,
+    LinearizedKKT,
     LinearizedDual,
     IndicatorDual,
+    Penalty,
 )
 @enum(MasterType,
     CCG,
