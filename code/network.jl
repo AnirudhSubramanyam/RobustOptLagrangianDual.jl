@@ -24,7 +24,7 @@ struct NetworkDesign <: Problem
             if data[rowIdx,1] == ")"
                 break
             end
-            push!(Nodes, data[rowIdx,1])
+            push!(Nodes, string(data[rowIdx,1]))
         end
 
         pos = findall(x->x=="LINKS",data); @assert length(pos)==1; (r,c) = Tuple(pos[1]); @assert c==1
@@ -39,10 +39,10 @@ struct NetworkDesign <: Problem
             if data[rowIdx,1] == ")"
                 break
             end
-            e = data[rowIdx,1]
+            e = string(data[rowIdx,1])
             push!(Edges, e)
-            Orig[e] = data[rowIdx,3]
-            Dest[e] = data[rowIdx,4]
+            Orig[e] = string(data[rowIdx,3])
+            Dest[e] = string(data[rowIdx,4])
             PreInstalledCap[e] = data[rowIdx,6]
             if isa(data[rowIdx,11], Number) && isa(data[rowIdx,12], Number)
                 ModuleCap = data[rowIdx,11]
@@ -65,8 +65,8 @@ struct NetworkDesign <: Problem
             if data[rowIdx,1] == ")"
                 break
             end
-            src = data[rowIdx,3]
-            tgt = data[rowIdx,4]
+            src = string(data[rowIdx,3])
+            tgt = string(data[rowIdx,4])
             demand = data[rowIdx,7]
             Demand[tgt] += demand
             Demand[src] -= demand
@@ -252,10 +252,6 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
     
     # objective
     if feasibility
-        if solver == "Gurobi"
-            JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
-            JuMP.set_optimizer_attribute(SP, "Cutoff", 1e-3)
-        end
         @objective(SP, Max,
             +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
             +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
