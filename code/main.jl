@@ -2,13 +2,14 @@ using JuMP
 using TimerOutputs
 using Printf, DelimitedFiles, Distances
 
-const solver = "Gurobi"
+const SOLVER = "Gurobi"
 const THREADLIM = 12
-if solver == "Gurobi" && !@isdefined(GUROBI_ENV)
+const TIMER = TimerOutput()
+if SOLVER == "Gurobi"
     using Gurobi
     const GUROBI_ENV = Gurobi.Env()
 end
-if solver == "Mosek"
+if SOLVER == "Mosek"
     using Mosek, MosekTools
 end
 

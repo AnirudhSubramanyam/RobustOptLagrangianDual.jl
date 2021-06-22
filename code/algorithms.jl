@@ -10,13 +10,13 @@ function print_progress(iter, lb, ub, elapsed_time, rho = nothing)
 end
 
 function initializeJuMPModel()
-    if solver == "Mosek"
+    if SOLVER == "Mosek"
         return Model(optimizer_with_attributes(
             Mosek.Optimizer,
             "MSK_IPAR_LOG" => 0,
             "MSK_IPAR_NUM_THREADS" => THREADLIM))
     end
-    if solver == "Gurobi"
+    if SOLVER == "Gurobi"
         return Model(optimizer_with_attributes(
             with_optimizer(Gurobi.Optimizer, GUROBI_ENV),
             "OutputFlag" => 0,
@@ -58,7 +58,6 @@ function run_default(
     subproblemtype::SubproblemType,
     masterproblemtype::MasterType,
     time_limit::Float64,
-    timer::TimerOutput = TimerOutputs.get_defaulttimer(),
 )
     algname = "$(subproblemtype)-$(masterproblemtype)"    
     if subproblemtype == LinearizedKKT && masterproblemtype == BD
