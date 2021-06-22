@@ -1,6 +1,14 @@
 
 gap(ub, lb) = isinf(ub) ? Inf : ((ub - lb)/ub)
 
+function print_progress(iter, lb, ub, elapsed_time, rho = nothing)
+    if rho === nothing
+        @printf("iter %3d: LB = %6.2e UB = %6.2e gap = %8.2f%% time=%8.1fsec\n", iter, LB, UB, optgap*100.0, elapsed_time)
+    else
+        @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec rho = %8.2f\n", iter, LB, UB, gap(UB, LB)*100.0, elapsed_time, rho)
+    end
+end
+
 function initializeJuMPModel()
     if solver == "Mosek"
         return Model(optimizer_with_attributes(
@@ -104,7 +112,7 @@ function run_default(
                 end
 
                 optgap = gap(UB, LB)
-                @printf("iter %3d: LB = %6.2e UB = %6.2e gap = %8.2f%% time=%8.1fsec\n", iter, LB, UB, optgap*100.0, time() - start_t)
+                print_progress(iter, LB, UB, time() - start_t)
                 if optgap <= epsilon
                     break
                 end
