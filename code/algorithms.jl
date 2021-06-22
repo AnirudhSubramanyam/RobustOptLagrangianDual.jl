@@ -57,18 +57,16 @@ function run_default(
         @error("$algname is not guaranteed to converge.")
         return 0, -Inf, +Inf, 0.0
     end
+    if subproblemtype == Penalty
+        @error("$subproblemtype-subproblem not supported in 'default' mode.")
+        return 0, -Inf, +Inf, 0.0
+    end
     @timeit timer algname begin
         LB = -Inf
         UB = +Inf
         epsilon = 1e-4 # optimality tolerance
         start_t = time()
 
-        @timeit timer "Compute penalty parameter" begin
-            rho = 100.0
-            if subproblemtype == Penalty
-                rho = compute_penalty_dual(problem)
-            end
-        end
         @timeit timer "Build Master" begin
             MP = init_master(problem)
         end
@@ -88,7 +86,7 @@ function run_default(
                     break
                 end
                 @timeit timer "Build Subproblem" begin
-                    SP = build_sp(problem, MP, subproblemtype, rho)
+                    SP = build_sp(problem, MP, subproblemtype)
                 end
                 @timeit timer "Optimize Subproblem" begin
                     solve_SP(problem, SP)
@@ -97,7 +95,7 @@ function run_default(
                     UB = min(UB, problem.ObjScale*objective_value(SP))
                 elseif termination_status(SP) == MOI.OBJECTIVE_LIMIT || objective_value(SP) <= epsilon
                     @timeit timer "Build Subproblem" begin
-                        SP = build_sp(problem, MP, subproblemtype, rho, false)
+                        SP = build_sp(problem, MP, subproblemtype, 1.0, false)
                     end
                     @timeit timer "Optimize Subproblem" begin
                         solve_SP(problem, SP)
