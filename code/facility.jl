@@ -445,4 +445,21 @@ function compute_penalty_subgradient(FLP::FacilityLocation)
     return rho
 end
 
+function record_scenario(FLP::FacilityLocation, SP::JuMP.Model, scenario_list::Dict)
+    z = JuMP.value.(SP[:z])
+    z = Int.(round.(z)) # should be 0-1
+    failedFacilities = Vector{Int}()
+    for j in FLP.Facilities
+        if z[j] == 1
+            push!(failedFacilities, j)
+        end
+    end
+    in_list = true
+    if !haskey(scenario_list, failedFacilities)
+        in_list = false
+        scenario_list[failedFacilities] = true
+    end
+
+    return in_list
+end
 

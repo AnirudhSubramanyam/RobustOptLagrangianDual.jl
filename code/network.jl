@@ -329,3 +329,21 @@ function solve_second_stage_problem_penalty(ND::NetworkDesign, MP::JuMP.Model, S
     step = sum(z[e]*(value(ff[e]) + value(fb[e])) for e in ND.Edges)
     return step
 end
+
+function record_scenario(ND::NetworkDesign, SP::JuMP.Model, scenario_list::Dict)
+    z = JuMP.value.(SP[:z])
+    z = Int.(round.(z)) # should be 0-1
+    failedEdges = Vector{String}()
+    for e in ND.Edges
+        if z[e] == 1
+            push!(failedEdges, e)
+        end
+    end
+    in_list = true
+    if !haskey(scenario_list, failedEdges)
+        in_list = false
+        scenario_list[failedEdges] = true
+    end
+
+    return in_list
+end
