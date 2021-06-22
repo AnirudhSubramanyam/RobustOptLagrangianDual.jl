@@ -38,7 +38,7 @@ end
 
 function solve_MP(problem::Problem, MP::JuMP.Model, time_limit::Float64)
     set_optimizer_time_limit(MP, time_limit)
-    @timeit TIMER "Optimize Master" optimize!(MP)
+    @timeit "Optimize Master" optimize!(MP)
     status = termination_status(MP)
     if problem.CompleteRecourse
         if status != MOI.OPTIMAL
@@ -60,7 +60,7 @@ end
 
 function solve_SP(problem::Problem, SP::JuMP.Model, time_limit::Float64)
     set_optimizer_time_limit(SP, time_limit)
-    @timeit TIMER "Optimize Subproblem" optimize!(SP)
+    @timeit "Optimize Subproblem" optimize!(SP)
     status = termination_status(SP)
     if problem.CompleteRecourse
         if status != MOI.OPTIMAL
@@ -80,12 +80,12 @@ function solve_SP(problem::Problem, SP::JuMP.Model, time_limit::Float64)
 end
 
 function debug_repeated_scenarios(scenario_list::Dict, masterproblemtype::MasterType, problem::Problem, SP::JuMP.Model, LB::Float64, UB::Float64, found_infeasible_scenario::Bool)
-    disable_timer!(TIMER)
+    disable_timer!()
     in_list = record_scenario(problem, SP, scenario_list)
     if in_list && masterproblemtype == CCG
         found_infeasible_scenario && @warn("repeated scenario - claimed infeasible", objective_value(SP))
         found_infeasible_scenario || @warn("repeated scenario - higher objective value", gap(UB, LB))
         @assert false
     end
-    enable_timer!(TIMER)
+    enable_timer!()
 end

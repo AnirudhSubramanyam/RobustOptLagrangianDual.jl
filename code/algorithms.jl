@@ -27,7 +27,7 @@ function run_default(
     MP = init_master(problem)
     scenario_list = Dict()
 
-    @timeit TIMER algname begin
+    @timeit algname begin
         while time() - start_t <= time_limit
             iter += 1
 
@@ -95,7 +95,7 @@ function run_lagrangian(
     rho = 1.0
     UB_inner_loop = UB
 
-    @timeit TIMER algname begin
+    @timeit algname begin
         while time() - start_t <= time_limit
             iter += 1
 
