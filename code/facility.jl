@@ -316,7 +316,7 @@ function build_sp_indicator_dual(FLP::FacilityLocation, MP::JuMP.Model)
     return SP
 end
 
-function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0, feasibility::Bool = true)
+function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
     if subproblem == LinearizedKKT
         return build_sp_linearized_kkt(FLP, MP)
     end

@@ -183,8 +183,8 @@ function build_sp_indicator_dual(ND::NetworkDesign, MP::JuMP.Model, feasibility:
         @variable(SP, vb[ND.Edges] <= 0)
         @variable(SP, vf[ND.Edges] <= 0)
     end
-    @variable(SP, zb[ND.Edges] <= 0)
-    @variable(SP, zf[ND.Edges] <= 0)
+    @variable(SP, zb[ND.Edges])
+    @variable(SP, zf[ND.Edges])
     @variable(SP, z[ND.Edges], Bin)
 
     # objective
@@ -220,13 +220,13 @@ function build_sp_indicator_dual(ND::NetworkDesign, MP::JuMP.Model, feasibility:
 
     # indicators
     @constraint(SP, [e in ND.Edges],
-        !z[e] => {zb[e] >= 0}
+        !z[e] => {zb[e] == 0}
     )
     @constraint(SP, [e in ND.Edges],
         z[e] => {zb[e] == vb[e]}
     )
     @constraint(SP, [e in ND.Edges],
-        !z[e] => {zf[e] >= 0}
+        !z[e] => {zf[e] == 0}
     )
     @constraint(SP, [e in ND.Edges],
         z[e] => {zf[e] == vf[e]}
@@ -283,13 +283,13 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
     return SP
 end
 
-function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0, feasibility::Bool=true)
+function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
     if subproblem == LinearizedKKT
         @assert false
     end
 
     if subproblem == Penalty
-        return build_sp_fixed_penalty(ND, MP, rho, feasibility)
+        return build_sp_fixed_penalty(ND, MP, rho, false)
     end
 
     if subproblem == LinearizedDual
@@ -297,7 +297,25 @@ function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType,
     end
 
     if subproblem == IndicatorDual
-        return build_sp_indicator_dual(ND, MP, feasibility)
+        return build_sp_indicator_dual(ND, MP, false)
+    end
+end
+
+function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
+    if subproblem == LinearizedKKT
+        @assert false
+    end
+
+    if subproblem == Penalty
+        return build_sp_fixed_penalty(ND, MP, rho, true)
+    end
+
+    if subproblem == LinearizedDual
+        @assert false
+    end
+
+    if subproblem == IndicatorDual
+        return build_sp_indicator_dual(ND, MP, true)
     end
 end
 
