@@ -1,63 +1,12 @@
-
-gap(ub, lb) = isinf(ub) ? Inf : ((ub - lb)/ub)
-
-function print_progress(iter, lb, ub, elapsed_time, rho = nothing)
-    if rho === nothing
-        @printf("iter %3d: LB = %6.2e UB = %6.2e gap = %8.2f%% time=%8.1fsec\n", iter, LB, UB, optgap*100.0, elapsed_time)
-    else
-        @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec rho = %8.2f\n", iter, LB, UB, gap(UB, LB)*100.0, elapsed_time, rho)
-    end
-end
-
-function initializeJuMPModel()
-    if SOLVER == "Mosek"
-        return Model(optimizer_with_attributes(
-            Mosek.Optimizer,
-            "MSK_IPAR_LOG" => 0,
-            "MSK_IPAR_NUM_THREADS" => THREADLIM))
-    end
-    if SOLVER == "Gurobi"
-        return Model(optimizer_with_attributes(
-            with_optimizer(Gurobi.Optimizer, GUROBI_ENV),
-            "OutputFlag" => 0,
-            "MIPGap" => 0,
-            "Threads" => THREADLIM))
-    end
-end
-
-function solve_MP(problem::Problem, MP::JuMP.Model)
-    optimize!(MP)
-    status = termination_status(MP)
-    if problem.CompleteRecourse
-        if status != MOI.OPTIMAL
-            @error("could not solve master problem to optimality. status = $(status)")
-        end
-    else
-        if status ∉ [MOI.OPTIMAL, MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
-            @error("could not solve master problem to optimality or infeasibility. status = $(status)")
-        end
-    end
-end
-
-function solve_SP(problem::Problem, SP::JuMP.Model)
-    optimize!(SP)
-    status = termination_status(SP)
-    if problem.CompleteRecourse
-        if status != MOI.OPTIMAL
-            @error("could not solve subproblem to optimality. status = $(status)")
-        end
-    else
-        if status ∉ [MOI.OPTIMAL, MOI.SOLUTION_LIMIT, MOI.OBJECTIVE_LIMIT]
-            @error("could not solve subproblem to optimality, solution_limit, or objective_limit. status = $(status)")
-        end
-    end
-end
+include("utilities.jl")
 
 function run_default(
     problem::Problem,
     subproblemtype::SubproblemType,
     masterproblemtype::MasterType,
     time_limit::Float64,
+    opt_tol::Float64 = 1e-4,
+    feas_tol::Float64 = 1e-5,
 )
     algname = "$(subproblemtype)-$(masterproblemtype)"    
     if subproblemtype == LinearizedKKT && masterproblemtype == BD
@@ -68,179 +17,153 @@ function run_default(
         @error("$subproblemtype-subproblem not supported in 'default' mode.")
         return 0, -Inf, +Inf, 0.0
     end
-    @timeit timer algname begin
-        LB = -Inf
-        UB = +Inf
-        epsilon = 1e-4 # optimality tolerance
-        start_t = time()
 
-        @timeit timer "Build Master" begin
-            MP = init_master(problem)
-        end
+    LB = -Inf
+    UB = +Inf
+    iter = 0
+    start_t = time()
 
-        @timeit timer "Main loop" begin
-            iter = 0
-            while time() - start_t <= time_limit
-                iter += 1
-                @timeit timer "Optimize Master" begin
-                    solve_MP(problem, MP)
-                end
-                if problem.CompleteRecourse || termination_status(MP) == MOI.OPTIMAL
-                    LB = problem.ObjScale * objective_value(MP)
-                else
-                    LB = +Inf
-                    @warn("infeasible problem instance. Quitting main loop.")
-                    break
-                end
-                @timeit timer "Build Subproblem" begin
-                    SP = build_sp(problem, MP, subproblemtype)
-                end
-                @timeit timer "Optimize Subproblem" begin
-                    solve_SP(problem, SP)
-                end
-                if problem.CompleteRecourse
-                    UB = min(UB, problem.ObjScale*objective_value(SP))
-                elseif termination_status(SP) == MOI.OBJECTIVE_LIMIT || objective_value(SP) <= epsilon
-                    @timeit timer "Build Subproblem" begin
-                        SP = build_sp(problem, MP, subproblemtype, 1.0, false)
-                    end
-                    @timeit timer "Optimize Subproblem" begin
-                        solve_SP(problem, SP)
-                    end
-                    UB = min(UB, problem.ObjScale*objective_value(SP))
-                end
+    SP = JuMP.Model()
+    MP = init_master(problem)
+    scenario_list = Dict()
 
-                optgap = gap(UB, LB)
-                print_progress(iter, LB, UB, time() - start_t)
-                if optgap <= epsilon
-                    break
+    @timeit TIMER algname begin
+        while time() - start_t <= time_limit
+            iter += 1
+
+            lb = solve_MP(problem, MP, time_limit - (time() - start_t))
+            !isnan(lb) && (LB = lb) # normal termination (optimal or infeasible)
+            !isfinite(lb) && break  # infeasible or non-normal termination
+
+            # Feasibility subproblem
+            found_infeasible_scenario = false
+            if !problem.CompleteRecourse
+                SP = build_feasibility_sp(problem, MP, subproblemtype)
+                if SOLVER == "Gurobi"
+                    JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
+                    JuMP.set_optimizer_attribute(SP, "Cutoff", feas_tol)
                 end
-                @timeit timer "Build Master" begin
-                    update_master(problem, MP, SP, masterproblemtype, subproblemtype)
+                ub = solve_SP(problem, SP, time_limit - (time() - start_t))
+                isnan(ub) && break  # non-normal termination
+                if termination_status(SP) != MOI.OBJECTIVE_LIMIT && objective_value(SP) > feas_tol
+                    found_infeasible_scenario = true
                 end
+            end
+
+            # Optimality subproblem
+            if !found_infeasible_scenario
+                SP = build_sp(problem, MP, subproblemtype)
+                ub = solve_SP(problem, SP, time_limit - (time() - start_t))
+                !isfinite(ub) && break  # non-normal termination
+                UB = min(UB, ub)
+            end
+
+            # Print progress
+            print_progress(iter, LB, UB, time() - start_t)
+
+            # Terminate or update master
+            if gap(UB, LB) > opt_tol
+                debug_repeated_scenarios(scenario_list, masterproblemtype, problem, SP, LB, UB, found_infeasible_scenario)
+                update_master(problem, MP, SP, masterproblemtype, subproblemtype)
+            else
+                break
             end
         end
     end
     return iter, LB, UB, time() - start_t
 end
 
-function run_adaptive_penalty_outer(
+function run_lagrangian(
     problem::Problem,
     masterproblemtype::MasterType,
     time_limit::Float64,
-    timer::TimerOutput = TimerOutputs.get_defaulttimer(),
+    opt_tol::Float64 = 1e-4,
+    feas_tol::Float64 = 1e-5,
 )
-    function compute_upper_bound(MP::JuMP.Model, UB_initial::Float64)
-        UB_true = UB_initial
-        rho_UB = 1000.0
-        while true
-            @timeit timer "Build Subproblem" begin
-                SP_UB = build_sp(problem, MP, Penalty, rho_UB)
-            end
-            @timeit timer "Optimize Subproblem" begin
-                solve_SP(problem, SP_UB)
-            end
+    subproblemtype = Penalty
+    algname = "Lagrangian-$(masterproblemtype)"
+
+    LB = -Inf
+    UB = +Inf
+    iter = 0
+    start_t = time()
+
+    SP = JuMP.Model()
+    MP = init_master(problem)
+    scenario_list = Dict()
+
+    rho = 1.0
+    UB_inner_loop = UB
+
+    @timeit TIMER algname begin
+        while time() - start_t <= time_limit
+            iter += 1
+
+            lb = solve_MP(problem, MP, time_limit - (time() - start_t))
+            !isnan(lb) && (LB = lb) # normal termination (optimal or infeasible)
+            !isfinite(lb) && break  # infeasible or non-normal termination
+            
+
+            # Feasibility subproblem
+            found_infeasible_scenario = false
             if !problem.CompleteRecourse
-                if termination_status(SP_UB) != MOI.OBJECTIVE_LIMIT && objective_value(SP_UB) > epsilon
-                    break
+                SP = build_feasibility_sp(problem, MP, subproblemtype, rho)
+                if SOLVER == "Gurobi"
+                    JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
+                    JuMP.set_optimizer_attribute(SP, "Cutoff", feas_tol)
+                end
+                ub = solve_SP(problem, SP, time_limit - (time() - start_t))
+                isnan(ub) && break  # non-normal termination
+                if termination_status(SP) != MOI.OBJECTIVE_LIMIT && objective_value(SP) > feas_tol
+                    found_infeasible_scenario = true
                 end
             end
-            @timeit timer "Build Subproblem" begin
-                SP_UB = build_sp(problem, MP, Penalty, rho_UB, false)
+
+
+            # Optimality subproblem
+            if !found_infeasible_scenario
+                SP = build_sp(problem, MP, subproblemtype, rho)
+                ub = solve_SP(problem, SP, time_limit - (time() - start_t))
+                !isfinite(ub) && break  # non-normal termination
+                UB_inner_loop = min(UB_inner_loop, ub)
+
+                # Heuristic for actual upper bound -- this is optional for convergence
+                step = solve_second_stage_problem_penalty(problem, MP, SP, rho)
+                (step <= feas_tol) && (UB = min(UB, ub))
+
+                # Exact method for actual upper bound - necessary for convergence
+                if step > feas_tol && gap(UB_inner_loop, LB) <= opt_tol
+                    flag = false
+                    while true
+                        rho *= 2.0
+                        SP = build_sp(problem, MP, subproblemtype, rho)
+                        ub = solve_SP(problem, SP, time_limit - (time() - start_t))
+                        if !isfinite(ub)# non-normal termination
+                            flag = true
+                            break
+                        end
+                        step = solve_second_stage_problem_penalty(problem, MP, SP, rho)
+                        (step <= feas_tol) && (UB = min(UB, ub))
+                        (step <= feas_tol) && break
+                    end
+                    flag && break # non-normal termination
+                    if gap(UB, LB) > opt_tol
+                        UB_inner_loop = UB
+                    end
+                end
             end
-            @timeit timer "Optimize Subproblem" begin
-                solve_SP(problem, SP_UB)
-            end
-            @timeit timer "Optimize Second-Stage Problem" begin
-                step = solve_second_stage_problem_penalty(problem, MP, SP_UB, rho_UB)
-            end
-            if step <= epsilon
-                UB_true = min(UB_true, problem.ObjScale*objective_value(SP_UB))
+
+            # Print progress
+            print_progress(iter, LB, UB, time() - start_t, rho)
+
+            # Terminate or update master
+            if found_infeasible_scenario || gap(UB, LB) > opt_tol
+                debug_repeated_scenarios(scenario_list, masterproblemtype, problem, SP, LB, UB, found_infeasible_scenario)
+                update_master(problem, MP, SP, masterproblemtype, subproblemtype)
+            else
                 break
             end
-            rho_UB *= 2.0
-        end
-        return UB_true
-    end
-    subproblemtype = Penalty
-    algname = "AdaptivePenaltyOuter-$(masterproblemtype)"
-    @timeit timer algname begin
-        LB = -Inf
-        UB = +Inf
-        epsilon = 1e-4
-        rho = 1.0
-        start_t = time()
-
-        @timeit timer "Build Master Problem" begin
-            MP = init_master(problem)
-        end
-
-        @timeit timer "Main loop" begin
-            iter = 0
-            UB_inner_loop = +Inf
-            while time() - start_t <= time_limit
-                iter += 1
-                @timeit timer "Optimize Master" begin
-                    solve_MP(problem, MP)
-                end
-                if problem.CompleteRecourse || termination_status(MP) == MOI.OPTIMAL
-                    LB = problem.ObjScale*objective_value(MP)
-                else
-                    LB = +Inf
-                    @warn("infeasible problem instance. Quitting main loop.")
-                    break
-                end
-                @timeit timer "Build Subproblem" begin
-                    SP = build_sp(problem, MP, subproblemtype, rho)
-                end
-                @timeit timer "Optimize Subproblem" begin
-                    if !problem.CompleteRecourse && solver == "Gurobi"
-                        JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
-                        JuMP.set_optimizer_attribute(SP, "Cutoff", epsilon)
-                    end
-                    solve_SP(problem, SP)
-                end
-                if problem.CompleteRecourse
-                    UB_inner_loop = min(UB_inner_loop, problem.ObjScale*objective_value(SP))
-                elseif termination_status(SP) == MOI.OBJECTIVE_LIMIT || objective_value(SP) <= epsilon
-                    @timeit timer "Build Subproblem" begin
-                        SP = build_sp(problem, MP, subproblemtype, rho, false)
-                    end
-                    @timeit timer "Optimize Subproblem" begin
-                        solve_SP(problem, SP)
-                    end
-                    UB_inner_loop = min(UB_inner_loop, problem.ObjScale*objective_value(SP))
-                end
-
-                if gap(UB_inner_loop, LB) > epsilon
-                    @timeit timer "Build Master" begin
-                        update_master(problem, MP, SP, masterproblemtype, subproblemtype)
-                    end
-
-                    optgap = gap(UB, LB)
-                    @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec rho = %8.2f\n", iter, LB, UB, optgap*100.0, time() - start_t, rho)
-                    continue
-                end
-                
-                @timeit timer "Compute upper bound" begin
-                    UB = compute_upper_bound(MP, UB)
-                end
-                @timeit timer "Optimize Second-Stage Problem" begin
-                    step = solve_second_stage_problem_penalty(problem, MP, SP, rho)
-                end
-
-                optgap = gap(UB, LB)
-                @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec rho = %8.2f\n", iter, LB, UB, optgap*100.0, time() - start_t, rho)
-
-                if optgap <= epsilon
-                    break
-                end
-                rho *= 2.0
-                UB_inner_loop = +Inf
-            end
-
-            
-        end
+        end 
     end
     return iter, LB, UB, time() - start_t
 end
