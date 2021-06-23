@@ -9,8 +9,8 @@ function run_default(
     feas_tol::Float64 = 1e-5,
 )
     algname = "$(subproblemtype)-$(masterproblemtype)"    
-    if subproblemtype == LinearizedKKT && masterproblemtype == Benders
-        @error("$algname is not guaranteed to converge.")
+    if masterproblemtype == Benders && subproblemtype ∈ [LinearizedKKT, IndicatorKKT]
+        @error("$algname configuration is invalid")
         return 0, -Inf, +Inf, 0.0
     end
     if subproblemtype == PenaltyDual
@@ -107,7 +107,7 @@ function run_lagrangian(
             # Feasibility subproblem
             found_infeasible_scenario = false
             if !problem.CompleteRecourse
-                SP = build_feasibility_sp(problem, MP, subproblemtype, λ)
+                SP = build_feasibility_sp(problem, MP, subproblemtype)
                 if SOLVER == "Gurobi"
                     JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
                     JuMP.set_optimizer_attribute(SP, "Cutoff", feas_tol)

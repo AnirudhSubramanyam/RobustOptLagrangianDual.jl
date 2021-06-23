@@ -297,7 +297,7 @@ function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType,
     end
 end
 
-function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, λ::Float64 = 1.0)
+function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType)
     if subproblem ∈ [LinearizedKKT, IndicatorKKT, LinearizedDual]
         error("Subproblem of type $subproblem not supported by NetworkDesign instances")
     end
@@ -307,7 +307,7 @@ function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::Sub
     end
 
     if subproblem == PenaltyDual
-        return build_sp_fixed_penalty(ND, MP, λ, true)
+        return build_sp_fixed_penalty(ND, MP, 1.0, true)
     end
 end
 
