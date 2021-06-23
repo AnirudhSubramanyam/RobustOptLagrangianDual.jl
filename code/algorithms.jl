@@ -122,35 +122,22 @@ function run_lagrangian(
 
             # Optimality subproblem
             if !found_infeasible_scenario
-                SP = build_sp(problem, MP, subproblemtype, λ)
-                ub = solve_SP(problem, SP, time_limit - (time() - start_t))
-                !isfinite(ub) && break  # non-normal termination
-                UB_inner_loop = min(UB_inner_loop, ub)
-
-                # Heuristic for actual upper bound -- this is optional for convergence
-                step = solve_second_stage_problem_lagrangian(problem, MP, SP, λ)
-                (step <= feas_tol) && (UB = min(UB, ub))
-
-                # Exact method for actual upper bound - necessary for convergence
-                if step > feas_tol && gap(UB_inner_loop, LB) <= opt_tol
-                    flag = false
-                    while true
-                        λ *= 2.0
-                        SP = build_sp(problem, MP, subproblemtype, λ)
-                        ub = solve_SP(problem, SP, time_limit - (time() - start_t))
-                        if !isfinite(ub)# non-normal termination
-                            flag = true
-                            break
-                        end
-                        step = solve_second_stage_problem_lagrangian(problem, MP, SP, λ)
-                        (step <= feas_tol) && (UB = min(UB, ub))
-                        (step <= feas_tol) && break
+                flag = false
+                while true
+                    SP = build_sp(problem, MP, subproblemtype, λ)
+                    ub = solve_SP(problem, SP, time_limit - (time() - start_t))
+                    if !isfinite(ub) # non-normal termination
+                        flag = true
+                        break
                     end
-                    flag && break # non-normal termination
-                    if gap(UB, LB) > opt_tol
-                        UB_inner_loop = UB
+                    step = solve_second_stage_problem_lagrangian(problem, MP, SP, λ)
+                    if step <= feas_tol
+                        UB = min(UB, ub)
+                        break
                     end
+                    λ *= 2.0
                 end
+                flag && break # non-normal termination
             end
 
             # Print progress
