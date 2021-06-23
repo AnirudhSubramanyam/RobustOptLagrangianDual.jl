@@ -93,7 +93,6 @@ function run_lagrangian(
     scenario_list = Dict()
 
     λ = 1.0
-    UB_inner_loop = UB
 
     @timeit algname begin
         while time() - start_t <= time_limit
