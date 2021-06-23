@@ -76,370 +76,370 @@ struct FacilityLocation <: Problem
     end
 end
 
-function init_master(FLP::FacilityLocation)
+function init_master(FL::FacilityLocation)
     m = initializeJuMPModel()
 
-    @variable(m, y[FLP.Facilities], Bin)
+    @variable(m, y[FL.Facilities], Bin)
     @variable(m, s >= 0)
     @objective(m, Min, s)
 
     return m
 end
 
-function update_master(FLP::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
+function update_master(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
     s = MP[:s]
     y = MP[:y]
 
     if master == CCG
         z = JuMP.value.(SP[:z])
         z = Float64.(Int.(round.(z))) # should be 0-1
-        x = @variable(MP, [FLP.Customers, FLP.Facilities], lower_bound = 0)
-        u = @variable(MP, [FLP.Customers], lower_bound = 0)
+        x = @variable(MP, [FL.Customers, FL.Facilities], lower_bound = 0)
+        u = @variable(MP, [FL.Customers], lower_bound = 0)
 
-        @constraint(MP, [i in FLP.Customers],
-            sum(x[i,j] for j in FLP.Facilities) + u[i] >= FLP.Demand[i]
+        @constraint(MP, [i in FL.Customers],
+            sum(x[i,j] for j in FL.Facilities) + u[i] >= FL.Demand[i]
         )
-        @constraint(MP, [j in FLP.Facilities],
-            sum(x[i,j] for i in FLP.Customers) <= FLP.Capacity[j]*y[j]*(1 - z[j])
+        @constraint(MP, [j in FL.Facilities],
+            sum(x[i,j] for i in FL.Customers) <= FL.Capacity[j]*y[j]*(1 - z[j])
         )
         @constraint(MP,
-            s >= sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-                +sum(FLP.Distance[(i,j)]*x[i,j] for i in FLP.Customers, j in FLP.Facilities)
-                +sum(FLP.PenaltyCost[i]*u[i] for i in FLP.Customers)
+            s >= sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+                +sum(FL.Distance[(i,j)]*x[i,j] for i in FL.Customers, j in FL.Facilities)
+                +sum(FL.PenaltyCost[i]*u[i] for i in FL.Customers)
         )
     end
 
-    if master == BD
-        if subproblem == Penalty
+    if master == Benders
+        if subproblem == PenaltyDual
             @warn("to do: optimality cut formuation not finalized for $(master)-$(subproblem)")
         end
 
-        if subproblem == Penalty
+        if subproblem == PenaltyDual
             α = JuMP.value.(SP[:α])
             β = JuMP.value.(SP[:β])
             @constraint(MP,
-                s >= sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-                    +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-                    -sum(FLP.Capacity[j]*y[j]*β[j] for j in FLP.Facilities)
+                s >= sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+                    +sum(FL.Demand[i]*α[i] for i in FL.Customers)
+                    -sum(FL.Capacity[j]*y[j]*β[j] for j in FL.Facilities)
             )
         end
 
-        if subproblem ∈ [Penalty, LinearizedDual, IndicatorDual]
+        if subproblem ∈ [PenaltyDual, LinearizedDual, IndicatorDual]
             α = JuMP.value.(SP[:α])
             β = JuMP.value.(SP[:β])
             z = JuMP.value.(SP[:z])
             z = Float64.(Int.(round.(z))) # should be 0-1
             @constraint(MP,
-                s >= sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-                    +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-                    -sum(FLP.Capacity[j]*y[j]*β[j]*(1-z[j]) for j in FLP.Facilities)
+                s >= sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+                    +sum(FL.Demand[i]*α[i] for i in FL.Customers)
+                    -sum(FL.Capacity[j]*y[j]*β[j]*(1-z[j]) for j in FL.Facilities)
             )
         end
     end
 end
 
-function build_sp_linearized_kkt(FLP::FacilityLocation, MP::JuMP.Model)
+function build_sp_linearized_kkt(FL::FacilityLocation, MP::JuMP.Model)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
 
     SP = initializeJuMPModel()
-    @variable(SP, x[FLP.Customers, FLP.Facilities] >= 0)
-    @variable(SP, u[FLP.Customers] >= 0)
-    @variable(SP, α[FLP.Customers] >= 0)
-    @variable(SP, β[FLP.Facilities] >= 0)
-    @variable(SP, wx[FLP.Customers, FLP.Facilities], Bin)
-    @variable(SP, wu[FLP.Customers], Bin)
-    @variable(SP, wα[FLP.Customers], Bin)
-    @variable(SP, wβ[FLP.Facilities], Bin)
-    @variable(SP, z[FLP.Facilities], Bin)
+    @variable(SP, x[FL.Customers, FL.Facilities] >= 0)
+    @variable(SP, u[FL.Customers] >= 0)
+    @variable(SP, α[FL.Customers] >= 0)
+    @variable(SP, β[FL.Facilities] >= 0)
+    @variable(SP, wx[FL.Customers, FL.Facilities], Bin)
+    @variable(SP, wu[FL.Customers], Bin)
+    @variable(SP, wα[FL.Customers], Bin)
+    @variable(SP, wβ[FL.Facilities], Bin)
+    @variable(SP, z[FL.Facilities], Bin)
 
     # objective
     @objective(SP, Max,
-        +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-        +sum(FLP.Distance[(i,j)]*x[i,j] for i in FLP.Customers, j in FLP.Facilities)
-        +sum(FLP.PenaltyCost[i]*u[i] for i in FLP.Customers)
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Distance[(i,j)]*x[i,j] for i in FL.Customers, j in FL.Facilities)
+        +sum(FL.PenaltyCost[i]*u[i] for i in FL.Customers)
     )
 
     # uncertainty set
-    @constraint(SP, sum(z[j] for j in FLP.Facilities) <= FLP.budget)
+    @constraint(SP, sum(z[j] for j in FL.Facilities) <= FL.budget)
 
     # primal feasibility
-    @constraint(SP, [i in FLP.Customers],
-        sum(x[i,j] for j in FLP.Facilities) + u[i] >= FLP.Demand[i]
+    @constraint(SP, [i in FL.Customers],
+        sum(x[i,j] for j in FL.Facilities) + u[i] >= FL.Demand[i]
     )
-    @constraint(SP, [j in FLP.Facilities],
-        sum(x[i,j] for i in FLP.Customers) <= FLP.Capacity[j]*y[j]*(1 - z[j])
+    @constraint(SP, [j in FL.Facilities],
+        sum(x[i,j] for i in FL.Customers) <= FL.Capacity[j]*y[j]*(1 - z[j])
     )
     # dual feasibility
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        α[i] - β[j] <= FLP.Distance[(i,j)]
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] <= FL.Distance[(i,j)]
     )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] <= FLP.PenaltyCost[i]
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.PenaltyCost[i]
     )
 
     # complementarity - primal feas
-    @constraint(SP, [i in FLP.Customers],
-        sum(x[i,j] for j in FLP.Facilities) + u[i] <= FLP.Demand[i] + (FLP.Mα[i]*(1 - wα[i]))
+    @constraint(SP, [i in FL.Customers],
+        sum(x[i,j] for j in FL.Facilities) + u[i] <= FL.Demand[i] + (FL.Mα[i]*(1 - wα[i]))
     )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] <= FLP.Mα[i]*wα[i]
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.Mα[i]*wα[i]
     )
-    @constraint(SP, [j in FLP.Facilities],
-        sum(x[i,j] for i in FLP.Customers) >= ((FLP.Capacity[j]*y[j]*(1 - z[j])) + (FLP.Mβ[j]*(wβ[j] - 1)))
+    @constraint(SP, [j in FL.Facilities],
+        sum(x[i,j] for i in FL.Customers) >= ((FL.Capacity[j]*y[j]*(1 - z[j])) + (FL.Mβ[j]*(wβ[j] - 1)))
     )
-    @constraint(SP, [j in FLP.Facilities],
-        β[j] <= (FLP.Mβ[j]*wβ[j])
+    @constraint(SP, [j in FL.Facilities],
+        β[j] <= (FL.Mβ[j]*wβ[j])
     )
     # complementarity - dual feas
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        α[i] - β[j] >= (FLP.Distance[(i,j)] + (FLP.Mx[(i,j)]*(wx[i,j] - 1)))
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] >= (FL.Distance[(i,j)] + (FL.Mx[(i,j)]*(wx[i,j] - 1)))
     )
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        x[i,j] <= (FLP.Mx[(i,j)]*wx[i,j])
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        x[i,j] <= (FL.Mx[(i,j)]*wx[i,j])
     )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] >= FLP.PenaltyCost[i] + (FLP.Mu[i]*(wu[i] - 1))
+    @constraint(SP, [i in FL.Customers],
+        α[i] >= FL.PenaltyCost[i] + (FL.Mu[i]*(wu[i] - 1))
     )
-    @constraint(SP, [i in FLP.Customers],
-        u[i] <= FLP.Mu[i]*wu[i]
+    @constraint(SP, [i in FL.Customers],
+        u[i] <= FL.Mu[i]*wu[i]
     )
 
     return SP
 end
 
-function build_sp_indicator_kkt(FLP::FacilityLocation, MP::JuMP.Model)
+function build_sp_indicator_kkt(FL::FacilityLocation, MP::JuMP.Model)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
 
     SP = initializeJuMPModel()
-    @variable(SP, x[FLP.Customers, FLP.Facilities] >= 0)
-    @variable(SP, u[FLP.Customers] >= 0)
-    @variable(SP, α[FLP.Customers] >= 0)
-    @variable(SP, β[FLP.Facilities] >= 0)
-    @variable(SP, wx[FLP.Customers, FLP.Facilities], Bin)
-    @variable(SP, wu[FLP.Customers], Bin)
-    @variable(SP, wα[FLP.Customers], Bin)
-    @variable(SP, wβ[FLP.Facilities], Bin)
-    @variable(SP, z[FLP.Facilities], Bin)
+    @variable(SP, x[FL.Customers, FL.Facilities] >= 0)
+    @variable(SP, u[FL.Customers] >= 0)
+    @variable(SP, α[FL.Customers] >= 0)
+    @variable(SP, β[FL.Facilities] >= 0)
+    @variable(SP, wx[FL.Customers, FL.Facilities], Bin)
+    @variable(SP, wu[FL.Customers], Bin)
+    @variable(SP, wα[FL.Customers], Bin)
+    @variable(SP, wβ[FL.Facilities], Bin)
+    @variable(SP, z[FL.Facilities], Bin)
 
     # objective
     @objective(SP, Max,
-        +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-        +sum(FLP.Distance[(i,j)]*x[i,j] for i in FLP.Customers, j in FLP.Facilities)
-        +sum(FLP.PenaltyCost[i]*u[i] for i in FLP.Customers)
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Distance[(i,j)]*x[i,j] for i in FL.Customers, j in FL.Facilities)
+        +sum(FL.PenaltyCost[i]*u[i] for i in FL.Customers)
     )
 
     # uncertainty set
-    @constraint(SP, sum(z[j] for j in FLP.Facilities) <= FLP.budget)
+    @constraint(SP, sum(z[j] for j in FL.Facilities) <= FL.budget)
 
     # primal feasibility
-    @constraint(SP, [i in FLP.Customers],
-        sum(x[i,j] for j in FLP.Facilities) + u[i] >= FLP.Demand[i]
+    @constraint(SP, [i in FL.Customers],
+        sum(x[i,j] for j in FL.Facilities) + u[i] >= FL.Demand[i]
     )
-    @constraint(SP, [j in FLP.Facilities],
-        sum(x[i,j] for i in FLP.Customers) <= FLP.Capacity[j]*y[j]*(1 - z[j])
+    @constraint(SP, [j in FL.Facilities],
+        sum(x[i,j] for i in FL.Customers) <= FL.Capacity[j]*y[j]*(1 - z[j])
     )
     # dual feasibility
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        α[i] - β[j] <= FLP.Distance[(i,j)]
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] <= FL.Distance[(i,j)]
     )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] <= FLP.PenaltyCost[i]
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.PenaltyCost[i]
     )
 
     # complementarity - primal feas
-    @constraint(SP, [i in FLP.Customers],
-        wα[i] => {sum(x[i,j] for j in FLP.Facilities) + u[i] <= FLP.Demand[i]}
+    @constraint(SP, [i in FL.Customers],
+        wα[i] => {sum(x[i,j] for j in FL.Facilities) + u[i] <= FL.Demand[i]}
     )
-    @constraint(SP, [i in FLP.Customers],
+    @constraint(SP, [i in FL.Customers],
         !wα[i] => {α[i] <= 0}
     )
-    @constraint(SP, [j in FLP.Facilities],
-        wβ[j] => {sum(x[i,j] for i in FLP.Customers) >= (FLP.Capacity[j]*y[j]*(1 - z[j]))}
+    @constraint(SP, [j in FL.Facilities],
+        wβ[j] => {sum(x[i,j] for i in FL.Customers) >= (FL.Capacity[j]*y[j]*(1 - z[j]))}
     )
-    @constraint(SP, [j in FLP.Facilities],
+    @constraint(SP, [j in FL.Facilities],
         !wβ[j] => {β[j] <= 0}
     )
     # complementarity - dual feas
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        wx[i,j] => {α[i] - β[j] >= FLP.Distance[(i,j)]}
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        wx[i,j] => {α[i] - β[j] >= FL.Distance[(i,j)]}
     )
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
         !wx[i,j] => {x[i,j] <= 0}
     )
-    @constraint(SP, [i in FLP.Customers],
-        wu[i] => {α[i] >= FLP.PenaltyCost[i]}
+    @constraint(SP, [i in FL.Customers],
+        wu[i] => {α[i] >= FL.PenaltyCost[i]}
     )
-    @constraint(SP, [i in FLP.Customers],
+    @constraint(SP, [i in FL.Customers],
         !wu[i] => {u[i] <= 0}
     )
 
     return SP
 end
 
-function build_sp_fixed_penalty(FLP::FacilityLocation, MP::JuMP.Model, rho::Float64)
+function build_sp_linearized_dual(FL::FacilityLocation, MP::JuMP.Model)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
     SP = initializeJuMPModel()
-    @variable(SP, α[FLP.Customers] >= 0)
-    @variable(SP, β[FLP.Facilities] >= 0)
-    @variable(SP, z[FLP.Facilities], Bin)
+    @variable(SP, α[FL.Customers] >= 0)
+    @variable(SP, β[FL.Facilities] >= 0)
+    @variable(SP, z[FL.Facilities], Bin)
+    @variable(SP, βz[FL.Facilities] >= 0)
 
     # objective
     @objective(SP, Max,
-        +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-        +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-        -sum(FLP.Capacity[j]*y[j]*β[j] for j in FLP.Facilities)
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Demand[i]*α[i] for i in FL.Customers)
+        -sum(FL.Capacity[j]*y[j]*(β[j] - βz[j]) for j in FL.Facilities)
     )
 
     # uncertainty set
-    @constraint(SP, sum(z[j] for j in FLP.Facilities) <= FLP.budget)
+    @constraint(SP, sum(z[j] for j in FL.Facilities) <= FL.budget)
 
     # dual feasibility
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        α[i] - β[j] <= FLP.Distance[(i,j)] + (rho*z[j])
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] <= FL.Distance[(i,j)]
     )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] <= FLP.PenaltyCost[i]
-    )
-
-    return SP
-end
-
-function build_sp_linearized_dual(FLP::FacilityLocation, MP::JuMP.Model)
-    y = JuMP.value.(MP[:y])
-    y = Float64.(Int.(round.(y))) # should be 0-1
-    SP = initializeJuMPModel()
-    @variable(SP, α[FLP.Customers] >= 0)
-    @variable(SP, β[FLP.Facilities] >= 0)
-    @variable(SP, z[FLP.Facilities], Bin)
-    @variable(SP, βz[FLP.Facilities] >= 0)
-
-    # objective
-    @objective(SP, Max,
-        +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-        +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-        -sum(FLP.Capacity[j]*y[j]*(β[j] - βz[j]) for j in FLP.Facilities)
-    )
-
-    # uncertainty set
-    @constraint(SP, sum(z[j] for j in FLP.Facilities) <= FLP.budget)
-
-    # dual feasibility
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        α[i] - β[j] <= FLP.Distance[(i,j)]
-    )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] <= FLP.PenaltyCost[i]
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.PenaltyCost[i]
     )
 
     # bilinearities
-    @constraint(SP, [j in FLP.Facilities],
-        βz[j] <= FLP.Mβ[j]*z[j]
+    @constraint(SP, [j in FL.Facilities],
+        βz[j] <= FL.Mβ[j]*z[j]
     )
-    @constraint(SP, [j in FLP.Facilities],
-        βz[j] >= β[j] - (FLP.Mβ[j]*(1 - z[j]))
+    @constraint(SP, [j in FL.Facilities],
+        βz[j] >= β[j] - (FL.Mβ[j]*(1 - z[j]))
     )
-    @constraint(SP, [j in FLP.Facilities],
+    @constraint(SP, [j in FL.Facilities],
         βz[j] <= β[j]
     )
 
     return SP
 end
 
-function build_sp_indicator_dual(FLP::FacilityLocation, MP::JuMP.Model)
+function build_sp_indicator_dual(FL::FacilityLocation, MP::JuMP.Model)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
     SP = initializeJuMPModel()
-    @variable(SP, α[FLP.Customers] >= 0)
-    @variable(SP, β[FLP.Facilities] >= 0)
-    @variable(SP, z[FLP.Facilities], Bin)
-    @variable(SP, βz[FLP.Facilities])
+    @variable(SP, α[FL.Customers] >= 0)
+    @variable(SP, β[FL.Facilities] >= 0)
+    @variable(SP, z[FL.Facilities], Bin)
+    @variable(SP, βz[FL.Facilities])
 
     # objective
     @objective(SP, Max,
-        +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-        +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-        -sum(FLP.Capacity[j]*y[j]*(β[j] - βz[j]) for j in FLP.Facilities)
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Demand[i]*α[i] for i in FL.Customers)
+        -sum(FL.Capacity[j]*y[j]*(β[j] - βz[j]) for j in FL.Facilities)
     )
 
     # uncertainty set
-    @constraint(SP, sum(z[j] for j in FLP.Facilities) <= FLP.budget)
+    @constraint(SP, sum(z[j] for j in FL.Facilities) <= FL.budget)
 
     # dual feasibility
-    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
-        α[i] - β[j] <= FLP.Distance[(i,j)]
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] <= FL.Distance[(i,j)]
     )
-    @constraint(SP, [i in FLP.Customers],
-        α[i] <= FLP.PenaltyCost[i]
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.PenaltyCost[i]
     )
 
     # indicators
-    @constraint(SP, [j in FLP.Facilities],
+    @constraint(SP, [j in FL.Facilities],
         z[j] => {βz[j] == β[j]}
     )
-    @constraint(SP, [j in FLP.Facilities],
+    @constraint(SP, [j in FL.Facilities],
         !z[j] => {βz[j] == 0}
     )
 
     return SP
 end
 
-function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
+function build_sp_fixed_penalty(FL::FacilityLocation, MP::JuMP.Model, rho::Float64)
+    y = JuMP.value.(MP[:y])
+    y = Float64.(Int.(round.(y))) # should be 0-1
+    SP = initializeJuMPModel()
+    @variable(SP, α[FL.Customers] >= 0)
+    @variable(SP, β[FL.Facilities] >= 0)
+    @variable(SP, z[FL.Facilities], Bin)
+
+    # objective
+    @objective(SP, Max,
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Demand[i]*α[i] for i in FL.Customers)
+        -sum(FL.Capacity[j]*y[j]*β[j] for j in FL.Facilities)
+    )
+
+    # uncertainty set
+    @constraint(SP, sum(z[j] for j in FL.Facilities) <= FL.budget)
+
+    # dual feasibility
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] <= FL.Distance[(i,j)] + (rho*z[j])
+    )
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.PenaltyCost[i]
+    )
+
+    return SP
+end
+
+function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
     if subproblem == LinearizedKKT
-        return build_sp_linearized_kkt(FLP, MP)
+        return build_sp_linearized_kkt(FL, MP)
     end
 
     if subproblem == IndicatorKKT
-        return build_sp_indicator_kkt(FLP, MP)
+        return build_sp_indicator_kkt(FL, MP)
     end
 
     if subproblem == LinearizedDual
-        return build_sp_linearized_dual(FLP, MP)
+        return build_sp_linearized_dual(FL, MP)
     end
 
     if subproblem == IndicatorDual
-        return build_sp_indicator_dual(FLP, MP)
+        return build_sp_indicator_dual(FL, MP)
     end
 
-    if subproblem == Penalty
-        return build_sp_fixed_penalty(FLP, MP, rho)
+    if subproblem == PenaltyDual
+        return build_sp_fixed_penalty(FL, MP, rho)
     end
 end
 
-function solve_second_stage_problem_penalty(FLP::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, rho::Float64)
+function solve_second_stage_problem_lagrangian(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, rho::Float64)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
     z = JuMP.value.(SP[:z])
     z = Float64.(Int.(round.(z))) # should be 0-1
     
     m = initializeJuMPModel()
-    @variable(m, x[FLP.Customers, FLP.Facilities] >= 0)
-    @variable(m, u[FLP.Customers] >= 0)
-    @constraint(m, [i in FLP.Customers],
-        sum(x[i,j] for j in FLP.Facilities) + u[i] >= FLP.Demand[i]
+    @variable(m, x[FL.Customers, FL.Facilities] >= 0)
+    @variable(m, u[FL.Customers] >= 0)
+    @constraint(m, [i in FL.Customers],
+        sum(x[i,j] for j in FL.Facilities) + u[i] >= FL.Demand[i]
     )
-    @constraint(m, cap[j in FLP.Facilities],
-        sum(x[i,j] for i in FLP.Customers) <= FLP.Capacity[j]*y[j]
+    @constraint(m, cap[j in FL.Facilities],
+        sum(x[i,j] for i in FL.Customers) <= FL.Capacity[j]*y[j]
     )
 
     @objective(m, Min,
-        sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
-        +sum(FLP.Distance[(i,j)]*x[i,j] for i in FLP.Customers, j in FLP.Facilities)
-        +sum(FLP.PenaltyCost[i]*u[i] for i in FLP.Customers)
-        +sum(rho*z[j]*(sum(x[i,j] for i in FLP.Customers)) for j in FLP.Facilities)
+        sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Distance[(i,j)]*x[i,j] for i in FL.Customers, j in FL.Facilities)
+        +sum(FL.PenaltyCost[i]*u[i] for i in FL.Customers)
+        +sum(rho*z[j]*(sum(x[i,j] for i in FL.Customers)) for j in FL.Facilities)
     )
     optimize!(m)
-    step = sum(z[j]*(sum(value(x[i,j]) for i in FLP.Customers)) for j in FLP.Facilities)
+    step = sum(z[j]*(sum(value(x[i,j]) for i in FL.Customers)) for j in FL.Facilities)
     return step
 end
 
-function record_scenario(FLP::FacilityLocation, SP::JuMP.Model, scenario_list::Dict)
+function record_scenario(FL::FacilityLocation, SP::JuMP.Model, scenario_list::Dict)
     z = JuMP.value.(SP[:z])
     z = Int.(round.(z)) # should be 0-1
     failedFacilities = Vector{Int}()
-    for j in FLP.Facilities
+    for j in FL.Facilities
         if z[j] == 1
             push!(failedFacilities, j)
         end

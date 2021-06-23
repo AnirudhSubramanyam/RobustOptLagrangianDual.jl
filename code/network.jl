@@ -165,7 +165,7 @@ function update_master(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, master
         )
     end
 
-    if master == BD
+    if master == Benders
         error("Master problem of type $master not supported by NetworkDesign instances")
     end
 end
@@ -292,7 +292,7 @@ function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType,
         return build_sp_indicator_dual(ND, MP, false)
     end
 
-    if subproblem == Penalty
+    if subproblem == PenaltyDual
         return build_sp_fixed_penalty(ND, MP, rho, false)
     end
 end
@@ -306,12 +306,12 @@ function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::Sub
         return build_sp_indicator_dual(ND, MP, true)
     end
 
-    if subproblem == Penalty
+    if subproblem == PenaltyDual
         return build_sp_fixed_penalty(ND, MP, rho, true)
     end
 end
 
-function solve_second_stage_problem_penalty(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, rho::Float64)
+function solve_second_stage_problem_lagrangian(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, rho::Float64)
     u = JuMP.value.(MP[:u])
     z = JuMP.value.(SP[:z])
     z = Float64.(Int.(round.(z))) # should be 0-1

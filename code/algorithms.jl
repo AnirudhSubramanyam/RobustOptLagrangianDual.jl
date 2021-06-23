@@ -9,7 +9,7 @@ function run_default(
     feas_tol::Float64 = 1e-5,
 )
     algname = "$(subproblemtype)-$(masterproblemtype)"    
-    if subproblemtype == LinearizedKKT && masterproblemtype == BD
+    if subproblemtype == LinearizedKKT && masterproblemtype == Benders
         @error("$algname is not guaranteed to converge.")
         return 0, -Inf, +Inf, 0.0
     end
@@ -128,7 +128,7 @@ function run_lagrangian(
                 UB_inner_loop = min(UB_inner_loop, ub)
 
                 # Heuristic for actual upper bound -- this is optional for convergence
-                step = solve_second_stage_problem_penalty(problem, MP, SP, rho)
+                step = solve_second_stage_problem_lagrangian(problem, MP, SP, rho)
                 (step <= feas_tol) && (UB = min(UB, ub))
 
                 # Exact method for actual upper bound - necessary for convergence
@@ -142,7 +142,7 @@ function run_lagrangian(
                             flag = true
                             break
                         end
-                        step = solve_second_stage_problem_penalty(problem, MP, SP, rho)
+                        step = solve_second_stage_problem_lagrangian(problem, MP, SP, rho)
                         (step <= feas_tol) && (UB = min(UB, ub))
                         (step <= feas_tol) && break
                     end

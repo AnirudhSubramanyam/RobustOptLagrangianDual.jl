@@ -5,9 +5,9 @@ abstract type Problem end
     IndicatorKKT,
     LinearizedDual,
     IndicatorDual,
-    Penalty,
+    PenaltyDual,
 )
 @enum(MasterType,
     CCG,
-    BD,
+    Benders,
 )
