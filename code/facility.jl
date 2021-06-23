@@ -76,6 +76,30 @@ struct FacilityLocation <: Problem
     end
 end
 
+function solve_deterministic_problem(FL::FacilityLocation)
+    m = initializeJuMPModel()
+
+    @variable(m, y[FL.Facilities], Bin)
+    @variable(m, x[FL.Customers, FL.Facilities] >= 0)
+    @variable(m, u[FL.Customers] >= 0)
+
+    @constraint(m, [i in FL.Customers],
+        sum(x[i,j] for j in FL.Facilities) + u[i] >= FL.Demand[i]
+    )
+    @constraint(m, [j in FL.Facilities],
+        sum(x[i,j] for i in FL.Customers) <= FL.Capacity[j]*y[j]
+    )
+    @objective(m, Min,
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Distance[(i,j)]*x[i,j] for i in FL.Customers, j in FL.Facilities)
+        +sum(FL.PenaltyCost[i]*u[i] for i in FL.Customers)
+    )
+
+    optimize!(m)
+
+    return objective_value(m)
+end
+
 function init_master(FL::FacilityLocation)
     m = initializeJuMPModel()
 
@@ -111,7 +135,7 @@ function update_master(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, mas
 
     if master == Benders
         if subproblem == PenaltyDual
-            @warn("to do: optimality cut formuation not finalized for $(master)-$(subproblem)")
+            @warn("optimality cut not finalized for $(master)-$(subproblem) for FacilityLocation instances")
         end
 
         if subproblem == PenaltyDual
