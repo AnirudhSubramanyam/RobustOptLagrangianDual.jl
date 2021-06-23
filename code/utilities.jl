@@ -3,11 +3,11 @@ function gap(ub, lb)
     return isinf(ub) ? Inf : ((ub - lb)/ub)
 end
 
-function print_progress(iter, lb, ub, elapsed_time, rho = nothing)
-    if rho === nothing
+function print_progress(iter, lb, ub, elapsed_time, λ = nothing)
+    if λ === nothing
         @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec\n", iter, lb, ub, gap(ub, lb)*100.0, elapsed_time)
     else
-        @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec rho = %8.2f\n", iter, lb, ub, gap(ub, lb)*100.0, elapsed_time, rho)
+        @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec λ = %8.2f\n", iter, lb, ub, gap(ub, lb)*100.0, elapsed_time, λ)
     end
 end
 

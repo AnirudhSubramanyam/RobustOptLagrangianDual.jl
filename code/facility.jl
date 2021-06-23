@@ -381,7 +381,7 @@ function build_sp_indicator_dual(FL::FacilityLocation, MP::JuMP.Model)
     return SP
 end
 
-function build_sp_fixed_penalty(FL::FacilityLocation, MP::JuMP.Model, rho::Float64)
+function build_sp_fixed_penalty(FL::FacilityLocation, MP::JuMP.Model, λ::Float64)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
     SP = initializeJuMPModel()
@@ -401,7 +401,7 @@ function build_sp_fixed_penalty(FL::FacilityLocation, MP::JuMP.Model, rho::Float
 
     # dual feasibility
     @constraint(SP, [i in FL.Customers, j in FL.Facilities],
-        α[i] - β[j] <= FL.Distance[(i,j)] + (rho*z[j])
+        α[i] - β[j] <= FL.Distance[(i,j)] + (λ*z[j])
     )
     @constraint(SP, [i in FL.Customers],
         α[i] <= FL.PenaltyCost[i]
@@ -410,7 +410,7 @@ function build_sp_fixed_penalty(FL::FacilityLocation, MP::JuMP.Model, rho::Float
     return SP
 end
 
-function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
+function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemType, λ::Float64 = 1.0)
     if subproblem == LinearizedKKT
         return build_sp_linearized_kkt(FL, MP)
     end
@@ -428,11 +428,11 @@ function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemTy
     end
 
     if subproblem == PenaltyDual
-        return build_sp_fixed_penalty(FL, MP, rho)
+        return build_sp_fixed_penalty(FL, MP, λ)
     end
 end
 
-function solve_second_stage_problem_lagrangian(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, rho::Float64)
+function solve_second_stage_problem_lagrangian(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, λ::Float64)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
     z = JuMP.value.(SP[:z])
@@ -452,7 +452,7 @@ function solve_second_stage_problem_lagrangian(FL::FacilityLocation, MP::JuMP.Mo
         sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
         +sum(FL.Distance[(i,j)]*x[i,j] for i in FL.Customers, j in FL.Facilities)
         +sum(FL.PenaltyCost[i]*u[i] for i in FL.Customers)
-        +sum(rho*z[j]*(sum(x[i,j] for i in FL.Customers)) for j in FL.Facilities)
+        +sum(λ*z[j]*(sum(x[i,j] for i in FL.Customers)) for j in FL.Facilities)
     )
     optimize!(m)
     step = sum(z[j]*(sum(value(x[i,j]) for i in FL.Customers)) for j in FL.Facilities)

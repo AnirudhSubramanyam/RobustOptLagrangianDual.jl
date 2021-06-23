@@ -235,7 +235,7 @@ function build_sp_indicator_dual(ND::NetworkDesign, MP::JuMP.Model, feasibility:
     return SP
 end
 
-function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64, feasibility::Bool)
+function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, λ::Float64, feasibility::Bool)
     u = JuMP.value.(MP[:u])
 
     SP = initializeJuMPModel()
@@ -274,16 +274,16 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
 
     # dual feasibility
     @constraint(SP, [e in ND.Edges],
-        vb[e] + μ[ND.Orig[e]] - μ[ND.Dest[e]] <= (feasibility ? 0 : ND.PerUnitTrCost[e]) + (rho*z[e])
+        vb[e] + μ[ND.Orig[e]] - μ[ND.Dest[e]] <= (feasibility ? 0 : ND.PerUnitTrCost[e]) + (λ*z[e])
     )
     @constraint(SP, [e in ND.Edges],
-        vf[e] - μ[ND.Orig[e]] + μ[ND.Dest[e]] <= (feasibility ? 0 : ND.PerUnitTrCost[e]) + (rho*z[e])
+        vf[e] - μ[ND.Orig[e]] + μ[ND.Dest[e]] <= (feasibility ? 0 : ND.PerUnitTrCost[e]) + (λ*z[e])
     )
 
     return SP
 end
 
-function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
+function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, λ::Float64 = 1.0)
     if subproblem ∈ [LinearizedKKT, IndicatorKKT, LinearizedDual]
         error("Subproblem of type $subproblem not supported by NetworkDesign instances")
     end
@@ -293,11 +293,11 @@ function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType,
     end
 
     if subproblem == PenaltyDual
-        return build_sp_fixed_penalty(ND, MP, rho, false)
+        return build_sp_fixed_penalty(ND, MP, λ, false)
     end
 end
 
-function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
+function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, λ::Float64 = 1.0)
     if subproblem ∈ [LinearizedKKT, IndicatorKKT, LinearizedDual]
         error("Subproblem of type $subproblem not supported by NetworkDesign instances")
     end
@@ -307,11 +307,11 @@ function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::Sub
     end
 
     if subproblem == PenaltyDual
-        return build_sp_fixed_penalty(ND, MP, rho, true)
+        return build_sp_fixed_penalty(ND, MP, λ, true)
     end
 end
 
-function solve_second_stage_problem_lagrangian(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, rho::Float64)
+function solve_second_stage_problem_lagrangian(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, λ::Float64)
     u = JuMP.value.(MP[:u])
     z = JuMP.value.(SP[:z])
     z = Float64.(Int.(round.(z))) # should be 0-1
@@ -322,7 +322,7 @@ function solve_second_stage_problem_lagrangian(ND::NetworkDesign, MP::JuMP.Model
 
     @objective(m, Min,
         +sum((ND.PerUnitCapCost[e]*u[e]) + (ND.PerUnitTrCost[e]*(ff[e] + fb[e])) for e in ND.Edges if e ∉ ND.DisAllowCap)
-        +sum(rho*z[e]*(ff[e] + fb[e]) for e in ND.Edges)
+        +sum(λ*z[e]*(ff[e] + fb[e]) for e in ND.Edges)
     )
 
     @constraint(m, [e in ND.Edges],
