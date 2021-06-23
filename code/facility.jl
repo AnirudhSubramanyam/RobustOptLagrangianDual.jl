@@ -244,13 +244,13 @@ function build_sp_linearized_dual(FLP::FacilityLocation, MP::JuMP.Model)
     @variable(SP, α[FLP.Customers] >= 0)
     @variable(SP, β[FLP.Facilities] >= 0)
     @variable(SP, z[FLP.Facilities], Bin)
-    @variable(SP, βtimes1minusz[FLP.Facilities] >= 0)
+    @variable(SP, βz[FLP.Facilities] >= 0)
 
     # objective
     @objective(SP, Max,
         +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
         +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-        -sum(FLP.Capacity[j]*y[j]*βtimes1minusz[j] for j in FLP.Facilities)
+        -sum(FLP.Capacity[j]*y[j]*(β[j] - βz[j]) for j in FLP.Facilities)
     )
 
     # uncertainty set
@@ -266,13 +266,13 @@ function build_sp_linearized_dual(FLP::FacilityLocation, MP::JuMP.Model)
 
     # bilinearities
     @constraint(SP, [j in FLP.Facilities],
-        βtimes1minusz[j] <= FLP.Mβ[j]*(1 - z[j])
+        βz[j] <= FLP.Mβ[j]*z[j]
     )
     @constraint(SP, [j in FLP.Facilities],
-        βtimes1minusz[j] >= β[j] - (FLP.Mβ[j]*z[j])
+        βz[j] >= β[j] - (FLP.Mβ[j]*(1 - z[j]))
     )
     @constraint(SP, [j in FLP.Facilities],
-        βtimes1minusz[j] <= β[j]
+        βz[j] <= β[j]
     )
 
     return SP
@@ -285,13 +285,13 @@ function build_sp_indicator_dual(FLP::FacilityLocation, MP::JuMP.Model)
     @variable(SP, α[FLP.Customers] >= 0)
     @variable(SP, β[FLP.Facilities] >= 0)
     @variable(SP, z[FLP.Facilities], Bin)
-    @variable(SP, βtimes1minusz[FLP.Facilities] >= 0)
+    @variable(SP, βz[FLP.Facilities])
 
     # objective
     @objective(SP, Max,
         +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
         +sum(FLP.Demand[i]*α[i] for i in FLP.Customers)
-        -sum(FLP.Capacity[j]*y[j]*βtimes1minusz[j] for j in FLP.Facilities)
+        -sum(FLP.Capacity[j]*y[j]*(β[j] - βz[j]) for j in FLP.Facilities)
     )
 
     # uncertainty set
@@ -307,10 +307,10 @@ function build_sp_indicator_dual(FLP::FacilityLocation, MP::JuMP.Model)
 
     # indicators
     @constraint(SP, [j in FLP.Facilities],
-        z[j] => {βtimes1minusz[j] == 0}
+        z[j] => {βz[j] == β[j]}
     )
     @constraint(SP, [j in FLP.Facilities],
-        !z[j] => {βtimes1minusz[j] == β[j]}
+        !z[j] => {βz[j] == 0}
     )
 
     return SP
