@@ -166,7 +166,7 @@ function update_master(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, master
     end
 
     if master == BD
-        @assert false
+        error("Master problem of type $master not supported by NetworkDesign instances")
     end
 end
 
@@ -284,38 +284,30 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, rho::Float64,
 end
 
 function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
-    if subproblem == LinearizedKKT
-        @assert false
-    end
-
-    if subproblem == Penalty
-        return build_sp_fixed_penalty(ND, MP, rho, false)
-    end
-
-    if subproblem == LinearizedDual
-        @assert false
+    if subproblem ∈ [LinearizedKKT, IndicatorKKT, LinearizedDual]
+        error("Subproblem of type $subproblem not supported by NetworkDesign instances")
     end
 
     if subproblem == IndicatorDual
         return build_sp_indicator_dual(ND, MP, false)
     end
+
+    if subproblem == Penalty
+        return build_sp_fixed_penalty(ND, MP, rho, false)
+    end
 end
 
 function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType, rho::Float64 = 1.0)
-    if subproblem == LinearizedKKT
-        @assert false
-    end
-
-    if subproblem == Penalty
-        return build_sp_fixed_penalty(ND, MP, rho, true)
-    end
-
-    if subproblem == LinearizedDual
-        @assert false
+    if subproblem ∈ [LinearizedKKT, IndicatorKKT, LinearizedDual]
+        error("Subproblem of type $subproblem not supported by NetworkDesign instances")
     end
 
     if subproblem == IndicatorDual
         return build_sp_indicator_dual(ND, MP, true)
+    end
+
+    if subproblem == Penalty
+        return build_sp_fixed_penalty(ND, MP, rho, true)
     end
 end
 

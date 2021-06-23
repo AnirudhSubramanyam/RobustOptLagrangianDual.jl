@@ -208,6 +208,76 @@ function build_sp_linearized_kkt(FLP::FacilityLocation, MP::JuMP.Model)
     return SP
 end
 
+function build_sp_indicator_kkt(FLP::FacilityLocation, MP::JuMP.Model)
+    y = JuMP.value.(MP[:y])
+    y = Float64.(Int.(round.(y))) # should be 0-1
+
+    SP = initializeJuMPModel()
+    @variable(SP, x[FLP.Customers, FLP.Facilities] >= 0)
+    @variable(SP, u[FLP.Customers] >= 0)
+    @variable(SP, α[FLP.Customers] >= 0)
+    @variable(SP, β[FLP.Facilities] >= 0)
+    @variable(SP, wx[FLP.Customers, FLP.Facilities], Bin)
+    @variable(SP, wu[FLP.Customers], Bin)
+    @variable(SP, wα[FLP.Customers], Bin)
+    @variable(SP, wβ[FLP.Facilities], Bin)
+    @variable(SP, z[FLP.Facilities], Bin)
+
+    # objective
+    @objective(SP, Max,
+        +sum(FLP.FixedCost[j]*y[j] for j in FLP.Facilities)
+        +sum(FLP.Distance[(i,j)]*x[i,j] for i in FLP.Customers, j in FLP.Facilities)
+        +sum(FLP.PenaltyCost[i]*u[i] for i in FLP.Customers)
+    )
+
+    # uncertainty set
+    @constraint(SP, sum(z[j] for j in FLP.Facilities) <= FLP.budget)
+
+    # primal feasibility
+    @constraint(SP, [i in FLP.Customers],
+        sum(x[i,j] for j in FLP.Facilities) + u[i] >= FLP.Demand[i]
+    )
+    @constraint(SP, [j in FLP.Facilities],
+        sum(x[i,j] for i in FLP.Customers) <= FLP.Capacity[j]*y[j]*(1 - z[j])
+    )
+    # dual feasibility
+    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
+        α[i] - β[j] <= FLP.Distance[(i,j)]
+    )
+    @constraint(SP, [i in FLP.Customers],
+        α[i] <= FLP.PenaltyCost[i]
+    )
+
+    # complementarity - primal feas
+    @constraint(SP, [i in FLP.Customers],
+        wα[i] => {sum(x[i,j] for j in FLP.Facilities) + u[i] <= FLP.Demand[i]}
+    )
+    @constraint(SP, [i in FLP.Customers],
+        !wα[i] => {α[i] <= 0}
+    )
+    @constraint(SP, [j in FLP.Facilities],
+        wβ[j] => {sum(x[i,j] for i in FLP.Customers) >= (FLP.Capacity[j]*y[j]*(1 - z[j]))}
+    )
+    @constraint(SP, [j in FLP.Facilities],
+        !wβ[j] => {β[j] <= 0}
+    )
+    # complementarity - dual feas
+    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
+        wx[i,j] => {α[i] - β[j] >= FLP.Distance[(i,j)]}
+    )
+    @constraint(SP, [i in FLP.Customers, j in FLP.Facilities],
+        !wx[i,j] => {x[i,j] <= 0}
+    )
+    @constraint(SP, [i in FLP.Customers],
+        wu[i] => {α[i] >= FLP.PenaltyCost[i]}
+    )
+    @constraint(SP, [i in FLP.Customers],
+        !wu[i] => {u[i] <= 0}
+    )
+
+    return SP
+end
+
 function build_sp_fixed_penalty(FLP::FacilityLocation, MP::JuMP.Model, rho::Float64)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
@@ -321,8 +391,8 @@ function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemT
         return build_sp_linearized_kkt(FLP, MP)
     end
 
-    if subproblem == Penalty
-        return build_sp_fixed_penalty(FLP, MP, rho)
+    if subproblem == IndicatorKKT
+        return build_sp_indicator_kkt(FLP, MP)
     end
 
     if subproblem == LinearizedDual
@@ -331,6 +401,10 @@ function build_sp(FLP::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemT
 
     if subproblem == IndicatorDual
         return build_sp_indicator_dual(FLP, MP)
+    end
+
+    if subproblem == Penalty
+        return build_sp_fixed_penalty(FLP, MP, rho)
     end
 end
 
