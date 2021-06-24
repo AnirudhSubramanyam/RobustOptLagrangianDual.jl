@@ -3,11 +3,12 @@ function gap(ub, lb)
     return isinf(ub) ? Inf : ((ub - lb)/ub)
 end
 
-function print_progress(iter, lb, ub, elapsed_time, λ = nothing)
+function print_progress(iter, lb, ub, elapsed_time, λ = nothing, inner = false)
+    str = inner ? "\tinner-iter" : "iter"
     if λ === nothing
-        @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec\n", iter, lb, ub, gap(ub, lb)*100.0, elapsed_time)
+        @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec\n", str, iter, lb, ub, gap(ub, lb)*100.0, elapsed_time)
     else
-        @printf("iter %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec λ = %8.2f\n", iter, lb, ub, gap(ub, lb)*100.0, elapsed_time, λ)
+        @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec λ = %8.2f\n", str, iter, lb, ub, gap(ub, lb)*100.0, elapsed_time, λ)
     end
 end
 
@@ -36,11 +37,11 @@ function initializeJuMPModel()
     end
 end
 
-function solve_MP(problem::Problem, MP::JuMP.Model, time_limit::Float64)
+function solve_MP(problem::AbstractProblem, MP::JuMP.Model, time_limit::Float64)
     set_optimizer_time_limit(MP, time_limit)
     @timeit "Optimize Master" optimize!(MP)
     status = termination_status(MP)
-    if problem.CompleteRecourse
+    if complete_recourse(problem)
         if status != MOI.OPTIMAL
             @warn("could not solve master problem to optimality. status = $(status)")
             return NaN
@@ -55,14 +56,14 @@ function solve_MP(problem::Problem, MP::JuMP.Model, time_limit::Float64)
         @warn("potentially infeasible problem instance")
         return +Inf
     end
-    return problem.ObjScale * objective_value(MP)
+    return objective_scale(problem) * objective_value(MP)
 end
 
-function solve_SP(problem::Problem, SP::JuMP.Model, time_limit::Float64)
+function solve_SP(problem::AbstractProblem, SP::JuMP.Model, time_limit::Float64)
     set_optimizer_time_limit(SP, time_limit)
     @timeit "Optimize Subproblem" optimize!(SP)
     status = termination_status(SP)
-    if problem.CompleteRecourse
+    if complete_recourse(problem)
         if status != MOI.OPTIMAL
             @warn("could not solve subproblem to optimality. status = $(status)")
             return NaN
@@ -76,16 +77,14 @@ function solve_SP(problem::Problem, SP::JuMP.Model, time_limit::Float64)
     if status == MOI.OBJECTIVE_LIMIT
         return -Inf
     end
-    return problem.ObjScale*objective_value(SP)
+    return objective_scale(problem) * objective_value(SP)
 end
 
-function debug_repeated_scenarios(scenario_list::Dict, masterproblemtype::MasterType, problem::Problem, SP::JuMP.Model, LB::Float64, UB::Float64, found_infeasible_scenario::Bool)
-    disable_timer!()
+function debug_repeated_scenarios(scenario_list::Dict, masterproblemtype::MasterType, problem::AbstractProblem, SP::JuMP.Model, LB::Float64, UB::Float64, found_infeasible_scenario::Bool)
     in_list = record_scenario(problem, SP, scenario_list)
     if in_list && masterproblemtype == CCG
         found_infeasible_scenario && @warn("repeated scenario - claimed infeasible", objective_value(SP))
-        found_infeasible_scenario || @warn("repeated scenario - higher objective value", gap(UB, LB))
+        found_infeasible_scenario || @warn("repeated scenario - claimed better", gap(UB, LB))
         @assert false
     end
-    enable_timer!()
 end

@@ -1,4 +1,4 @@
-struct NetworkDesign <: Problem
+struct NetworkDesign <: AbstractProblem
     NumNodes::Int
     NumEdges::Int
     Nodes::Vector{String}
@@ -13,7 +13,6 @@ struct NetworkDesign <: Problem
     Multiplier::Float64
     budget::Int
     ObjScale::Float64
-    CompleteRecourse::Bool
 
     function NetworkDesign(filename::String, Multiplier::Float64, budget::Int)
         data = readdlm(filename)
@@ -94,10 +93,17 @@ struct NetworkDesign <: Problem
             Demand,
             Multiplier,
             budget,
-            ObjScale,
-            false)
+            ObjScale)
     end
 end
+
+mixed_integer_recourse(ND::NetworkDesign) = false
+
+complete_recourse(ND::NetworkDesign) = false
+
+objective_scale(ND::NetworkDesign) = ND.ObjScale
+
+indicator_uncertainty(ND::NetworkDesign) = true
 
 function solve_deterministic_problem(ND::NetworkDesign)
     m = initializeJuMPModel()
@@ -141,7 +147,7 @@ function init_master(ND::NetworkDesign)
     return m
 end
 
-function update_master(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
+function update_master_continuous(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
     s = MP[:s]
     u = MP[:u]
 

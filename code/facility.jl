@@ -1,4 +1,4 @@
-struct FacilityLocation <: Problem
+struct FacilityLocation <: AbstractProblem
     NumFac::Int
     NumCust::Int
     Facilities::Vector{Int}
@@ -15,8 +15,6 @@ struct FacilityLocation <: Problem
     Mβ::Vector{Float64}
     Mx::Dict{Tuple{Int, Int}, Float64}
     Mu::Vector{Float64}
-    ObjScale::Float64
-    CompleteRecourse::Bool
 
     function FacilityLocation(filename::String, budget::Int, omega_paper::Bool = true, pvalue = 1.0)
         (data, header) = readdlm(filename; header=true)
@@ -70,11 +68,17 @@ struct FacilityLocation <: Problem
             Mα,
             Mβ,
             Mx,
-            Mu,
-            1.0,
-            true)
+            Mu)
     end
 end
+
+mixed_integer_recourse(FL::FacilityLocation) = false
+
+complete_recourse(FL::FacilityLocation) = true
+
+objective_scale(FL::FacilityLocation) = 1.0
+
+indicator_uncertainty(FL::FacilityLocation) = true
 
 function solve_deterministic_problem(FL::FacilityLocation)
     m = initializeJuMPModel()
@@ -110,7 +114,7 @@ function init_master(FL::FacilityLocation)
     return m
 end
 
-function update_master(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
+function update_master_continuous(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
     s = MP[:s]
     y = MP[:y]
 
