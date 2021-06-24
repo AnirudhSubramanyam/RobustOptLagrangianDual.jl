@@ -28,8 +28,8 @@ function test_facility_location(instance::String, budget_range::Vector{Int})
         problem = FacilityLocation(instance, budget)
         it_d, lb_d, ub_d, ttime_d = run_ccg(problem, LinearizedKKT, time_limit)
         it_p, lb_p, ub_p, ttime_p = run_ccg(problem, PenaltyDual, time_limit)
-        #run_benders(problem, LinearizedDual, time_limit)
-        #run_benders(problem, PenaltyDual, time_limit)
+        # it_d, lb_d, ub_d, ttime_d = run_benders(problem, LinearizedDual, time_limit)
+        # it_p, lb_p, ub_p, ttime_p = run_benders(problem, PenaltyDual, time_limit)
         push!(info_d, (it_d, lb_d, ub_d, ttime_d))
         push!(info_p, (it_p, lb_p, ub_p, ttime_p))
     end
@@ -87,5 +87,5 @@ end
 
 # test_facility_location("data/CFLP/Cap_F20_C25.txt", collect(1:2))
 # test_network_design("data/SNDLIB/dfn-bwin.txt", collect(1:5))
-test_rostering(1, collect(12:12))
+# test_rostering(1, collect(12:12))
 
