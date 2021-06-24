@@ -62,7 +62,7 @@ function run_default(
             print_progress(iter, LB, UB, time() - start_t)
 
             # Terminate or update master
-            if gap(UB, LB) > opt_tol
+            if found_infeasible_scenario || gap(UB, LB) > opt_tol
                 debug_repeated_scenarios(scenario_list, masterproblemtype, problem, SP, LB, UB, found_infeasible_scenario)
                 update_master(problem, MP, SP, masterproblemtype, subproblemtype)
             else
@@ -150,6 +150,103 @@ function run_lagrangian(
                 break
             end
         end 
+    end
+    return iter, LB, UB, time() - start_t
+end
+
+function run_ccg_integer(
+    problem::Problem,
+    subproblemtype::SubproblemType,
+    time_limit::Float64,
+    opt_tol::Float64 = 1e-4,
+    feas_tol::Float64 = 1e-5,
+)
+    if !problem.CompleteRecourse
+        @error("to do - feasibility subproblems for mixed-integer instances without complete recourse")
+        return 0, -Inf, +Inf, 0.0
+    end
+    masterproblemtype = CCG
+    algname = "$(subproblemtype)-$(masterproblemtype)"
+    LB = -Inf
+    UB = +Inf
+    iter = 0
+    start_t = time()
+
+    MP_outer = init_master(problem)
+    scenario_list = Dict()
+
+    λ = nothing
+
+    @timeit algname begin
+        while time() - start_t <= time_limit
+            iter += 1
+
+            lb = solve_MP(problem, MP_outer, time_limit - (time() - start_t))
+            !isnan(lb) && (LB = lb) # normal termination (optimal or infeasible)
+            !isfinite(lb) && break  # infeasible or non-normal termination
+
+            @timeit "$algname-InnerLevel" begin
+                LB_inner = -Inf
+                UB_inner = +Inf
+                iter_inner = 0
+
+                MP_inner = init_master_inner_level(problem)
+                MP_inner_opt = nothing
+
+                if subproblemtype == PenaltyDual
+                    λ = compute_lagrangian_parameter(problem, MP_outer)
+                end
+
+                normal_termination = true
+                while time() - start_t <= time_limit
+                    iter_inner += 1
+
+                    ub = solve_MP(problem, MP_inner, time_limit - (time() - start_t))
+                    if isnan(ub) # non-normal termination
+                        normal_termination = false
+                        break
+                    end
+                    UB_inner = ub
+                    UB = min(UB, UB_inner)
+
+                    SP = build_second_stage_problem(problem, MP_outer, MP_inner)
+                    lb = solve_SP(problem, SP, time_limit - (time() - start_t))
+                    if !isfinite(lb) # non-normal termination
+                        normal_termination = false
+                        break
+                    end
+                    if lb > LB_inner
+                        LB_inner = lb
+                        MP_inner_opt = init_master_inner_level(problem, MP_inner)
+                        # if gap(LB_inner, LB) > 10.0*opt_tol
+                        #     break
+                        # end
+                    end
+
+                    # Print progress
+                    @printf("\t"); print_progress(iter_inner, LB_inner, UB_inner, time() - start_t, λ)
+
+                    # Terminate or update master
+                    if gap(UB_inner, LB_inner) > opt_tol
+                        update_master_inner_level(problem, MP_outer, MP_inner, SP, subproblemtype, λ)
+                    else
+                        break
+                    end
+                end
+                normal_termination || break
+            end
+
+            # Print progress
+            print_progress(iter, LB, UB, time() - start_t, λ)
+
+            # Terminate or update master
+            if gap(UB, LB) > opt_tol
+                debug_repeated_scenarios(scenario_list, masterproblemtype, problem, MP_inner_opt, LB, UB, found_infeasible_scenario)
+                update_master(problem, MP_outer, MP_inner_opt, masterproblemtype, subproblemtype)
+            else
+                break
+            end
+        end
     end
     return iter, LB, UB, time() - start_t
 end
