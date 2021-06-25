@@ -19,6 +19,9 @@ function set_optimizer_time_limit(m::JuMP.Model, time_limit::Float64)
     if SOLVER == "Gurobi"
         JuMP.set_optimizer_attribute(m, "TimeLimit", max(time_limit, 0.01))
     end
+    if SOLVER == "CPLEX"
+        JuMP.set_optimizer_attribute(m, "CPXPARAM_TimeLimit", max(time_limit, 0.01))
+    end
 end
 
 function initializeJuMPModel()
@@ -26,14 +29,25 @@ function initializeJuMPModel()
         return Model(optimizer_with_attributes(
             Mosek.Optimizer,
             "MSK_IPAR_LOG" => 0,
-            "MSK_IPAR_NUM_THREADS" => THREADLIM))
+            "MSK_DPAR_MIO_TOL_REL_GAP" => 0,
+            "MSK_IPAR_NUM_THREADS" => THREADLIM
+            ))
     end
     if SOLVER == "Gurobi"
         return Model(optimizer_with_attributes(
             with_optimizer(Gurobi.Optimizer, GUROBI_ENV),
             "OutputFlag" => 0,
             "MIPGap" => 0,
-            "Threads" => THREADLIM))
+            "Threads" => THREADLIM
+        ))
+    end
+    if SOLVER == "CPLEX"
+        return Model(optimizer_with_attributes(
+            CPLEX.Optimizer,
+            "CPXPARAM_ScreenOutput" => 0,
+            "CPXPARAM_MIP_Tolerances_MIPGap" => 0,
+            "CPXPARAM_Threads" => THREADLIM
+        ))
     end
 end
 

@@ -11,6 +11,9 @@ end
 if SOLVER == "Mosek"
     using Mosek, MosekTools
 end
+if SOLVER == "CPLEX"
+    using CPLEX
+end
 
 include("problem.jl")
 include("facility.jl")

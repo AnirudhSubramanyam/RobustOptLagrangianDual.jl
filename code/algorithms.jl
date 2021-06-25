@@ -76,10 +76,6 @@ function run_iterative_continuous_recourse(
             found_infeasible_scenario = false
             if !complete_recourse(problem)
                 SP = build_feasibility_sp(problem, MP, subproblemtype)
-                # if SOLVER == "Gurobi"
-                #     JuMP.set_optimizer_attribute(SP, "SolutionLimit", 1)
-                #     JuMP.set_optimizer_attribute(SP, "Cutoff", feas_tol)
-                # end
                 ub = solve_SP(problem, SP, time_limit - (time() - start_t))
                 isnan(ub) && break  # non-normal termination
                 if termination_status(SP) != MOI.OBJECTIVE_LIMIT && objective_value(SP) > feas_tol
