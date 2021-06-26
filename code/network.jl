@@ -196,15 +196,15 @@ function build_sp_indicator_dual(ND::NetworkDesign, MP::JuMP.Model, feasibility:
     # objective
     if feasibility
         @objective(SP, Max,
-            +sum((ND.PreInstalledCap[e]+u[e])*(vb[e]-zb[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
-            +sum((ND.PreInstalledCap[e]+u[e])*(vf[e]-zf[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
+            +sum((ND.PreInstalledCap[e]+u[e])*(vb[e]-zb[e]) for e in ND.Edges)
+            +sum((ND.PreInstalledCap[e]+u[e])*(vf[e]-zf[e]) for e in ND.Edges)
             +sum(ND.Demand[i]*μ[i] for i in ND.Nodes)
         )
     else
         @objective(SP, Max,
             +sum((ND.PerUnitCapCost[e]*u[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
-            +sum((ND.PreInstalledCap[e]+u[e])*(vb[e]-zb[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
-            +sum((ND.PreInstalledCap[e]+u[e])*(vf[e]-zf[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
+            +sum((ND.PreInstalledCap[e]+u[e])*(vb[e]-zb[e]) for e in ND.Edges)
+            +sum((ND.PreInstalledCap[e]+u[e])*(vf[e]-zf[e]) for e in ND.Edges)
             +sum(ND.Demand[i]*μ[i] for i in ND.Nodes)
         )
     end
@@ -259,15 +259,15 @@ function build_sp_fixed_penalty(ND::NetworkDesign, MP::JuMP.Model, λ::Float64, 
     # objective
     if feasibility
         @objective(SP, Max,
-            +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
-            +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
+            +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges)
+            +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges)
             +sum(ND.Demand[i]*μ[i] for i in ND.Nodes)
         )
     else
         @objective(SP, Max,
             +sum((ND.PerUnitCapCost[e]*u[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
-            +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
-            +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges if e ∉ ND.DisAllowCap)
+            +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges)
+            +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges)
             +sum(ND.Demand[i]*μ[i] for i in ND.Nodes)
         )
     end
