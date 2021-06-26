@@ -47,7 +47,7 @@ function run(args)
     elseif input[:type] == "network"
         filename = joinpath(dirname(@__FILE__), "data/SNDLIB/$(instance).txt")
         problem = NetworkDesign(filename, 1.0, budget)
-        tiny = NetworkDesign(joinpath(dirname(@__FILE__), "data/SNDLIB/dfn-bwin.txt"), 1)
+        tiny = NetworkDesign(joinpath(dirname(@__FILE__), "data/SNDLIB/dfn-bwin.txt"), 1.0, 1)
     elseif input[:type] == "rostering"
         scale = parse(Int, instance)
         problem = Rostering(budget, scale, scale, seed)
@@ -78,7 +78,7 @@ function run(args)
 end
 
 function batch_gen()
-    basecmd = "julia run.jl"
+    basecmd = "julia --project run.jl"
     runs = Vector{String}()
 
     # facility
