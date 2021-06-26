@@ -94,7 +94,9 @@ function run_iterative_continuous_recourse(
                             normal_termination = false
                             break
                         end
+                        @timeit "solve_second_stage_problem_lagrangian" begin
                         step = solve_second_stage_problem_lagrangian(problem, MP, SP, λ)
+                        end
                         if step <= feas_tol
                             UB = min(UB, ub)
                             break
@@ -104,7 +106,9 @@ function run_iterative_continuous_recourse(
                     normal_termination || break
                 else
                     if subproblemtype == PenaltyDual
+                        @timeit "compute_lagrangian_parameter" begin
                         λ = compute_lagrangian_parameter(problem, MP)
+                        end
                         SP = build_sp(problem, MP, subproblemtype, λ)
                     else
                         SP = build_sp(problem, MP, subproblemtype)
@@ -127,7 +131,7 @@ function run_iterative_continuous_recourse(
             end
         end
     end
-    return iter, LB, UB, time() - start_t
+    return iter, LB, UB, time() - start_t, nothing
 end
 
 function run_ccg_mixed_integer_recourse(
@@ -146,6 +150,7 @@ function run_ccg_mixed_integer_recourse(
     UB = +Inf
     iter = 0
     start_t = time()
+    iter_inner = Vector{Int}()
 
     MP_outer = init_master(problem)
     scenario_list = Dict()
@@ -158,6 +163,7 @@ function run_ccg_mixed_integer_recourse(
     @timeit algname begin
         while time() - start_t <= time_limit
             iter += 1
+            push!(iter_inner, 0)
 
             lb = solve_MP(problem, MP_outer, time_limit - (time() - start_t))
             !isnan(lb) && (LB = lb) # normal termination (optimal or infeasible)
@@ -166,18 +172,18 @@ function run_ccg_mixed_integer_recourse(
             @timeit "$algname-InnerLevel" begin
                 LB_inner = -Inf
                 UB_inner = +Inf
-                iter_inner = 0
-
                 MP_inner = init_master_inner_level(problem)
                 MP_inner_opt = nothing
 
                 if subproblemtype == PenaltyDual
+                    @timeit "compute_lagrangian_parameter" begin
                     λ = compute_lagrangian_coefficient(problem, MP_outer)
+                    end
                 end
 
                 normal_termination = true
                 while time() - start_t <= time_limit
-                    iter_inner += 1
+                    iter_inner[end] += 1
 
                     ub = solve_MP(problem, MP_inner, time_limit - (time() - start_t))
                     if isnan(ub) # non-normal termination
@@ -205,7 +211,7 @@ function run_ccg_mixed_integer_recourse(
                     # end
 
                     # Print progress
-                    print_progress(iter_inner, LB_inner, UB_inner, time() - start_t, λ, true)
+                    print_progress(iter_inner[end], LB_inner, UB_inner, time() - start_t, λ, true)
 
                     # Terminate or update master
                     if gap(UB_inner, LB_inner) > opt_tol
@@ -229,5 +235,5 @@ function run_ccg_mixed_integer_recourse(
             end
         end
     end
-    return iter, LB, UB, time() - start_t
+    return iter, LB, UB, time() - start_t, iter_inner
 end

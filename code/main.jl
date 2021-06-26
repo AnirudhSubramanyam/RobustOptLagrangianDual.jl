@@ -3,7 +3,7 @@ using TimerOutputs
 using Printf, DelimitedFiles, Distances
 
 const SOLVER = "Gurobi"
-const THREADLIM = 12
+const THREADLIM = 8
 if SOLVER == "Gurobi" && !@isdefined(GUROBI_ENV)
     using Gurobi
     const GUROBI_ENV = Gurobi.Env()
@@ -29,10 +29,10 @@ function test_facility_location(instance::String, budget_range::Vector{Int})
     reset_timer!()
     for (i, budget) in enumerate(budget_range)
         problem = FacilityLocation(instance, budget)
-        it_d, lb_d, ub_d, ttime_d = run_ccg(problem, LinearizedKKT, time_limit)
-        it_p, lb_p, ub_p, ttime_p = run_ccg(problem, PenaltyDual, time_limit)
-        # it_d, lb_d, ub_d, ttime_d = run_benders(problem, LinearizedDual, time_limit)
-        # it_p, lb_p, ub_p, ttime_p = run_benders(problem, PenaltyDual, time_limit)
+        it_d, lb_d, ub_d, ttime_d, _ = run_ccg(problem, LinearizedKKT, time_limit)
+        it_p, lb_p, ub_p, ttime_p, _ = run_ccg(problem, PenaltyDual, time_limit)
+        # it_d, lb_d, ub_d, ttime_d, _ = run_benders(problem, LinearizedDual, time_limit)
+        # it_p, lb_p, ub_p, ttime_p, _ = run_benders(problem, PenaltyDual, time_limit)
         push!(info_d, (it_d, lb_d, ub_d, ttime_d))
         push!(info_p, (it_p, lb_p, ub_p, ttime_p))
     end
@@ -57,8 +57,8 @@ function test_network_design(instance::String, budget_range::Vector{Int})
     reset_timer!()
     for (i, budget) in enumerate(budget_range)
         problem = NetworkDesign(instance, 1.0, budget)
-        it_d, lb_d, ub_d, ttime_d = run_ccg(problem, IndicatorDual, time_limit)
-        it_p, lb_p, ub_p, ttime_p = run_ccg(problem, PenaltyDual, time_limit)
+        it_d, lb_d, ub_d, ttime_d, _ = run_ccg(problem, IndicatorDual, time_limit)
+        it_p, lb_p, ub_p, ttime_p, _ = run_ccg(problem, PenaltyDual, time_limit)
         push!(info_d, (it_d, lb_d, ub_d, ttime_d))
         push!(info_p, (it_p, lb_p, ub_p, ttime_p))
     end
