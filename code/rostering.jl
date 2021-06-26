@@ -16,8 +16,8 @@ struct Rostering <: AbstractProblem
     DemandDev::Vector{Float64}
     budget::Int
 
-    function Rostering(budget::Int, scale_time::Int, scale_demand::Int)
-        Random.seed!(10)
+    function Rostering(budget::Int, scale_time::Int, scale_demand::Int, seed::Int = 1)
+        Random.seed!(seed)
         I = 12*scale_demand
         J = 3*scale_demand
         T = 21*scale_time
