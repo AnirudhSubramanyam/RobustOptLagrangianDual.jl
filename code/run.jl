@@ -16,7 +16,7 @@ function parse_commandline(args)
             range_tester = x -> x > 0
         "--subproblem"
             arg_type = String
-            range_tester = x -> x in ["LinearizedKKT", "IndicatorKKT", "LinearizedDual", "IndicatorDual", "PenaltyDual"]
+            range_tester = x -> x in ["LinearizedKKT", "IndicatorKKT", "LinearizedDual", "IndicatorDual", "LagrangianDual"]
         "--seed"
             default = 1
             arg_type = Int
@@ -87,7 +87,7 @@ function batch_gen()
     files = readdir(joinpath(dirname(@__FILE__), "data/CFLP"))
     for f in files
         instance = splitext(f)[1]
-        for budget in 1:4, subproblem in ["LinearizedKKT", "PenaltyDual"]
+        for budget in 1:4, subproblem in ["LinearizedKKT", "LagrangianDual"]
             cmd = "$basecmd --type=facility --instance=$instance --budget=$budget --subproblem=$subproblem"
             push!(runs, cmd)
         end
@@ -95,7 +95,7 @@ function batch_gen()
 
     # network
     for instance in ["dfn-bwin", "dfn-gwin", "di-yuan"]
-        for budget in 1:16, subproblem in ["IndicatorDual", "PenaltyDual"]
+        for budget in 1:16, subproblem in ["IndicatorDual", "LagrangianDual"]
             cmd = "$basecmd --type=network --instance=$instance --budget=$budget --subproblem=$subproblem"
             push!(runs, cmd)
         end
@@ -103,7 +103,7 @@ function batch_gen()
 
     # rostering
     for instance in [1, 2], seed in 1:10
-        for budget in 3:3:18, subproblem in ["LinearizedKKT", "IndicatorKKT", "PenaltyDual"]
+        for budget in 3:3:18, subproblem in ["LinearizedKKT", "IndicatorKKT", "LagrangianDual"]
             cmd = "$basecmd --type=rostering --instance=$instance --seed=$seed --budget=$budget --subproblem=$subproblem"
             push!(runs, cmd)
         end

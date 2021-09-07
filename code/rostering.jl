@@ -347,7 +347,7 @@ function update_master_inner_level(R::Rostering, MP_outer::JuMP.Model, MP_inner:
         end
     end
 
-    if master_inner ∈ [PenaltyDual]
+    if master_inner ∈ [LagrangianDual]
         #= default (unscaled)
         γ = @variable(MP_inner, [1:R.T], lower_bound = 0)
         @constraint(MP_inner,

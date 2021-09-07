@@ -3,7 +3,7 @@
     IndicatorKKT,
     LinearizedDual,
     IndicatorDual,
-    PenaltyDual,
+    LagrangianDual,
 )
 @enum(MasterType,
     CCG,
@@ -162,7 +162,7 @@ function init_master_inner_level end
 Update the inner-level master model `MP_inner` based on the optimal values
 of the outer-level master model `MP_outer`, the subproblem model `SP`, and
 the `master_inner` type of the inner-level master model.
-The Lagrangian coefficient `λ` must be `Float64` if `master_inner == PenaltyDual`.
+The Lagrangian coefficient `λ` must be `Float64` if `master_inner == LagrangianDual`.
 Must be implemented if `mixed_integer_recourse(problem) = true`.
 """
 function update_master_inner_level end

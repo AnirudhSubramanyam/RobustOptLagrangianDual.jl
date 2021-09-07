@@ -298,7 +298,7 @@ function build_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::SubproblemType,
         return build_sp_indicator_dual(ND, MP, false)
     end
 
-    if subproblem == PenaltyDual
+    if subproblem == LagrangianDual
         return build_sp_fixed_penalty(ND, MP, λ, false)
     end
 end
@@ -312,7 +312,7 @@ function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::Sub
         return build_sp_indicator_dual(ND, MP, true)
     end
 
-    if subproblem == PenaltyDual
+    if subproblem == LagrangianDual
         return build_sp_fixed_penalty(ND, MP, 1.0, true)
     end
 end

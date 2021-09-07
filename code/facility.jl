@@ -154,7 +154,7 @@ function update_master_continuous(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP
             )
         end
 
-        if subproblem ∈ [PenaltyDual]
+        if subproblem ∈ [LagrangianDual]
             α = JuMP.value.(SP[:α])
             β = JuMP.value.(SP[:β])
             @constraint(MP,
@@ -181,7 +181,7 @@ function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemTy
 
     # dual feasibility
     @constraint(SP, [i in FL.Customers, j in FL.Facilities],
-        α[i] - β[j] <= FL.Distance[(i,j)] + (((subproblem == PenaltyDual) ? λ : 0.0)*z[j])
+        α[i] - β[j] <= FL.Distance[(i,j)] + (((subproblem == LagrangianDual) ? λ : 0.0)*z[j])
     )
     @constraint(SP, [i in FL.Customers],
         α[i] <= FL.PenaltyCost[i]
@@ -300,7 +300,7 @@ function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemTy
         end
     end
 
-    if subproblem ∈ [PenaltyDual]
+    if subproblem ∈ [LagrangianDual]
         # objective
         @objective(SP, Max,
             +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)

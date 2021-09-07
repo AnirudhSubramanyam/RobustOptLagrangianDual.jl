@@ -12,7 +12,7 @@ function run_ccg(
             @error("to do - CCG algorithm for mixed-integer instances without complete recourse")
             return nothing
         end
-        if subproblemtype == PenaltyDual && indicator_uncertainty(problem)
+        if subproblemtype == LagrangianDual && indicator_uncertainty(problem)
             @error("to do - CCG algorithm for mixed-integer instances with indicator uncertainties")
             return nothing
         end
@@ -60,7 +60,7 @@ function run_iterative_continuous_recourse(
     scenario_list = Dict()
 
     λ = nothing
-    if subproblemtype == PenaltyDual
+    if subproblemtype == LagrangianDual
         λ = 1.0
     end
 
@@ -85,7 +85,7 @@ function run_iterative_continuous_recourse(
 
             # Optimality subproblem
             if !found_infeasible_scenario
-                if subproblemtype == PenaltyDual && indicator_uncertainty(problem)
+                if subproblemtype == LagrangianDual && indicator_uncertainty(problem)
                     normal_termination = true
                     while true
                         SP = build_sp(problem, MP, subproblemtype, λ)
@@ -105,7 +105,7 @@ function run_iterative_continuous_recourse(
                     end
                     normal_termination || break
                 else
-                    if subproblemtype == PenaltyDual
+                    if subproblemtype == LagrangianDual
                         @timeit "compute_lagrangian_parameter" begin
                         λ = compute_lagrangian_parameter(problem, MP)
                         end
@@ -142,7 +142,7 @@ function run_ccg_mixed_integer_recourse(
     feas_tol::Float64,
 )
     @assert complete_recourse(problem)
-    @assert subproblemtype != PenaltyDual || !indicator_uncertainty(problem)
+    @assert subproblemtype != LagrangianDual || !indicator_uncertainty(problem)
 
     masterproblemtype = CCG
     algname = "$(subproblemtype)-$(masterproblemtype)"
@@ -156,7 +156,7 @@ function run_ccg_mixed_integer_recourse(
     scenario_list = Dict()
 
     λ = nothing
-    if subproblemtype == PenaltyDual
+    if subproblemtype == LagrangianDual
         λ = 1.0
     end
 
@@ -175,7 +175,7 @@ function run_ccg_mixed_integer_recourse(
                 MP_inner = init_master_inner_level(problem)
                 MP_inner_opt = nothing
 
-                if subproblemtype == PenaltyDual
+                if subproblemtype == LagrangianDual
                     @timeit "compute_lagrangian_parameter" begin
                     λ = compute_lagrangian_coefficient(problem, MP_outer)
                     end
@@ -206,7 +206,7 @@ function run_ccg_mixed_integer_recourse(
                         #     break
                         # end
                     end
-                    # if subproblemtype == PenaltyDual
+                    # if subproblemtype == LagrangianDual
                     #     @assert solve_second_stage_problem_lagrangian(problem, MP_outer, MP_inner, λ) <= feas_tol
                     # end
 
