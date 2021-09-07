@@ -44,6 +44,7 @@ function run(args)
         filename = joinpath(dirname(@__FILE__), "data/CFLP/$(instance).txt")
         problem = FacilityLocation(filename, budget)
         tiny = FacilityLocation(joinpath(dirname(@__FILE__), "data/CFLP/Cap_F10_C10.txt"), 1)
+        time_limit = 7200.0
     elseif input[:type] == "network"
         filename = joinpath(dirname(@__FILE__), "data/SNDLIB/$(instance).txt")
         problem = NetworkDesign(filename, 1.0, budget)
@@ -52,6 +53,7 @@ function run(args)
         scale = parse(Int, instance)
         problem = Rostering(budget, scale, scale, seed)
         tiny = Rostering(1, 1, 1, 1)
+        time_limit = 7200.0
     end
 
     outdir = joinpath(dirname(@__FILE__), "output", input[:type])
