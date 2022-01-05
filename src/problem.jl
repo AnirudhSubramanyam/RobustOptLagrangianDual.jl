@@ -154,19 +154,12 @@ function build_feasibility_sp end
 
 """
     init_master_inner_level(R::Rostering)
+    init_master_inner_level(R::Rostering, MP_inner::JuMP.Model)
 
 Initialize the inner-level master model with variables and constraints.
 Must be implemented if `mixed_integer_recourse(problem) == true`.
-"""
-function init_master_inner_level end
-
-"""
-    init_master_inner_level(R::Rostering, MP_inner::JuMP.Model)
-
-Initialize the inner-level master model with variables such that
-their values are fixed to optimal values of the inner-level
-master model `MP_inner`.
-Must be implemented if `mixed_integer_recourse(problem) == true`.
+When `MP_inner` is specified, the variable values must be fixed to
+optimal values of the inner-level master model `MP_inner`.
 """
 function init_master_inner_level end
 
