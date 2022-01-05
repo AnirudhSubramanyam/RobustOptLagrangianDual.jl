@@ -1,5 +1,5 @@
-include("main.jl")
-
+using RobustOptLagrangianDual
+using TimerOutputs
 using ArgParse, JLD2, DelimitedFiles
 
 
@@ -41,14 +41,14 @@ function run(args)
     tiny = nothing
     time_limit = 3600.0
     if input[:type] == "facility"
-        filename = joinpath(dirname(@__FILE__), "data/CFLP/$(instance).txt")
+        filename = joinpath(dirname(@__FILE__), "../data/CFLP/$(instance).txt")
         problem = FacilityLocation(filename, budget)
-        tiny = FacilityLocation(joinpath(dirname(@__FILE__), "data/CFLP/Cap_F10_C10.txt"), 1)
+        tiny = FacilityLocation(joinpath(dirname(@__FILE__), "../data/CFLP/Cap_F10_C10.txt"), 1)
         time_limit = 7200.0
     elseif input[:type] == "network"
-        filename = joinpath(dirname(@__FILE__), "data/SNDLIB/$(instance).txt")
+        filename = joinpath(dirname(@__FILE__), "../data/SNDLIB/$(instance).txt")
         problem = NetworkDesign(filename, 1.0, budget)
-        tiny = NetworkDesign(joinpath(dirname(@__FILE__), "data/SNDLIB/dfn-bwin.txt"), 1.0, 1)
+        tiny = NetworkDesign(joinpath(dirname(@__FILE__), "../data/SNDLIB/dfn-bwin.txt"), 1.0, 1)
     elseif input[:type] == "rostering"
         scale = parse(Int, instance)
         problem = Rostering(budget, scale, scale, seed)
@@ -80,11 +80,11 @@ function run(args)
 end
 
 function batch_gen()
-    basecmd = "julia --project run.jl"
+    basecmd = "julia --project test/run.jl"
     runs = Vector{String}()
 
     # facility
-    files = readdir(joinpath(dirname(@__FILE__), "data/CFLP"))
+    files = readdir(joinpath(dirname(@__FILE__), "../data/CFLP"))
     for f in files
         instance = splitext(f)[1]
         for budget in 1:4, subproblem in ["LinearizedKKT", "LagrangianDual"]

@@ -1,31 +1,11 @@
-using JuMP
-using TimerOutputs
-using Printf, DelimitedFiles, Distances
-
-const SOLVER = "Gurobi"
-const THREADLIM = 8
-if SOLVER == "Gurobi" && !@isdefined(GUROBI_ENV)
-    using Gurobi
-    const GUROBI_ENV = Gurobi.Env()
-end
-if SOLVER == "Mosek"
-    using Mosek, MosekTools
-end
-if SOLVER == "CPLEX"
-    using CPLEX
-end
-
-include("problem.jl")
-include("facility.jl")
-include("network.jl")
-include("rostering.jl")
-include("algorithms.jl")
+using RobustOptLagrangianDual
+using Printf, TimerOutputs
 
 function test_facility_location(instance::String, budget_range::Vector{Int})
     time_limit = 3600.0
-    info_d = Tuple{Int, Float64, Float64, Float64}[]
-    info_p = Tuple{Int, Float64, Float64, Float64}[]
-    
+    info_d = Tuple{Int,Float64,Float64,Float64}[]
+    info_p = Tuple{Int,Float64,Float64,Float64}[]
+
     reset_timer!()
     for (i, budget) in enumerate(budget_range)
         problem = FacilityLocation(instance, budget)
@@ -50,10 +30,10 @@ end
 
 function test_network_design(instance::String, budget_range::Vector{Int})
     time_limit = 600.0
-    info_d = Tuple{Int, Float64, Float64, Float64}[]
-    info_p = Tuple{Int, Float64, Float64, Float64}[]
+    info_d = Tuple{Int,Float64,Float64,Float64}[]
+    info_p = Tuple{Int,Float64,Float64,Float64}[]
     det = solve_deterministic_problem(NetworkDesign(instance, 1.0, 0))
-    
+
     reset_timer!()
     for (i, budget) in enumerate(budget_range)
         problem = NetworkDesign(instance, 1.0, budget)
@@ -88,7 +68,6 @@ function test_rostering(scale::Int, budget_range::Vector{Int})
     end
 end
 
-# test_facility_location("data/CFLP/Cap_F20_C25.txt", collect(1:2))
-# test_network_design("data/SNDLIB/dfn-bwin.txt", collect(1:5))
-# test_rostering(1, collect(12:12))
-
+test_facility_location(joinpath(dirname(@__FILE__), "..", "data/CFLP/Cap_F10_C10.txt"), collect(1:2))
+test_network_design(joinpath(dirname(@__FILE__), "..", "data/SNDLIB/dfn-bwin.txt"), collect(1:2))
+test_rostering(1, collect(12:12))
