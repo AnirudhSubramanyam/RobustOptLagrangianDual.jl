@@ -21,6 +21,7 @@ include("problem.jl")
 include("facility.jl")
 include("network.jl")
 include("rostering.jl")
+include("utilities.jl")
 include("algorithms.jl")
 
 export run_ccg, run_benders, solve_deterministic_problem

@@ -65,8 +65,9 @@ function indicator_uncertainty end
 """
     solve_deterministic_problem(problem::AbstractProblem)
 
-Solve deterministic problem for nominal parameter values
-and return the optimal objective value.
+Solve deterministic problem for nominal parameter values.
+    
+Return the optimal objective value.
 """
 function solve_deterministic_problem end
 
@@ -74,8 +75,9 @@ function solve_deterministic_problem end
     solve_second_stage_problem_lagrangian(problem::AbstractProblem, MP::JuMP.Model, SP::JuMP.Model, λ::Float64)
 
 Solve the second-stage Lagrangian problem with coefficient `λ`
-based on the optimal values of the master model `MP` and subproblem `SP`,
-and return the optimal value of the Lagrangian penalty term.
+based on the optimal values of the master model `MP` and subproblem `SP`.
+
+Return the optimal value of the Lagrangian penalty term.
 """
 function solve_second_stage_problem_lagrangian end
 
@@ -84,6 +86,7 @@ function solve_second_stage_problem_lagrangian end
 
 Return an optimal Lagrangian coefficient based on the optimal
 value of the (outer-level) master model `MP`.
+
 Must be implemented if `indicator_uncertainty(problem) == false`.
 """
 function compute_lagrangian_coefficient end
@@ -94,6 +97,7 @@ function compute_lagrangian_coefficient end
 Return the JuMP model of the deterministic second-stage problem
 based on the optimal values of the outer-level `MP_outer` and
 inner-level `MP_inner` master models.
+
 Must be implemented if `mixed_integer_recourse(problem) == true`.
 """
 function build_second_stage_problem end
@@ -103,6 +107,7 @@ function build_second_stage_problem end
 
 This is only for debugging purposes. Record the optimal value of the
 subproblem model `SP` in the `scenario_list` dictionary.
+
 Return `true` if the scenario already existed in `scenario_list`
 and `false` otherwise.
 """
@@ -120,6 +125,7 @@ function init_master end
 
 Update the master model `MP` based on the optimal value of the
 continuous subproblem model `SP`, the `master` type and `subproblem` type.
+
 Must be implemented if `mixed_integer_recourse(problem) == false`.
 """
 function update_master_continous end
@@ -130,6 +136,7 @@ function update_master_continous end
 Update the outer-level master model `MP_outer` based on the optimal value
 of the mixed-integer inner-level master model `MP_inner` and
 the `master` type of the inner-level master model.
+
 Must be implemented if `mixed_integer_recourse(problem) = true`.
 """
 function update_master_mixed_integer end
@@ -139,6 +146,7 @@ function update_master_mixed_integer end
 
 Return the JuMP model of the optimality type `subproblem` based on the
 optimal value of the master model `MP` and the Lagrangian coefficient `λ`.
+
 Must be implemented if `mixed_integer_recourse(problem) == false`.
 """
 function build_sp end
@@ -147,8 +155,9 @@ function build_sp end
     build_feasibility_sp(problem::AbstractProblem, MP::JuMP.Model, subproblem::SubproblemType)
 
 Return the JuMP model of the feasibility type `subproblem` based on the
-optimal value of the master model `MP`. Must be implemented if
-`mixed_integer_recourse(problem) == false && complete_recourse(problem) == false`.
+optimal value of the master model `MP`.
+
+Must be implemented if `mixed_integer_recourse(problem) == false && complete_recourse(problem) == false`.
 """
 function build_feasibility_sp end
 
@@ -157,6 +166,7 @@ function build_feasibility_sp end
     init_master_inner_level(R::Rostering, MP_inner::JuMP.Model)
 
 Initialize the inner-level master model with variables and constraints.
+
 Must be implemented if `mixed_integer_recourse(problem) == true`.
 When `MP_inner` is specified, the variable values must be fixed to
 optimal values of the inner-level master model `MP_inner`.
@@ -169,7 +179,9 @@ function init_master_inner_level end
 Update the inner-level master model `MP_inner` based on the optimal values
 of the outer-level master model `MP_outer`, the subproblem model `SP`, and
 the `master_inner` type of the inner-level master model.
+
 The Lagrangian coefficient `λ` must be `Float64` if `master_inner == LagrangianDual`.
+
 Must be implemented if `mixed_integer_recourse(problem) = true`.
 """
 function update_master_inner_level end

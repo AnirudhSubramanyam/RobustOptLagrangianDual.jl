@@ -1,11 +1,11 @@
-include("utilities.jl")
-
 """
     run_ccg(problem::AbstractProblem, subproblemtype::SubproblemType, time_limit::Float64, opt_tol::Float64 = 1e-4, feas_tol::Float64 = 1e-5)
 
 Solve `problem` using the column-and-constraint generation algorithm using the
 `subproblemtype` subproblem with specified `time_limit` (in seconds) and
 optimality and feasibility tolerances of `opt_tol` and `feas_tol`, respectively.
+
+Returns `(num_iter, lb, ub, total_time, iter_inner)`
 """
 function run_ccg(
     problem::AbstractProblem,
@@ -34,6 +34,8 @@ end
 Solve `problem` using the benders decomposition algorithm using the
 `subproblemtype` subproblem with specified `time_limit` (in seconds) and
 optimality and feasibility tolerances of `opt_tol` and `feas_tol`, respectively.
+
+Returns `(num_iter, lb, ub, total_time, nothing)`
 """
 function run_benders(
     problem::AbstractProblem,
