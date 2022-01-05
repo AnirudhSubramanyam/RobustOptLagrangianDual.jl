@@ -1,3 +1,8 @@
+"""
+    NetworkDesign <: AbstractProblem
+
+Default implementation of `NetworkDesign` problem.
+"""
 struct NetworkDesign <: AbstractProblem
     NumNodes::Int
     NumEdges::Int

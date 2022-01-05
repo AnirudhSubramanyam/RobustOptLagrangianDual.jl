@@ -1,5 +1,12 @@
 include("utilities.jl")
 
+"""
+    run_ccg(problem::AbstractProblem, subproblemtype::SubproblemType, time_limit::Float64, opt_tol::Float64 = 1e-4, feas_tol::Float64 = 1e-5)
+
+Solve `problem` using the column-and-constraint generation algorithm using the
+`subproblemtype` subproblem with specified `time_limit` (in seconds) and
+optimality and feasibility tolerances of `opt_tol` and `feas_tol`, respectively.
+"""
 function run_ccg(
     problem::AbstractProblem,
     subproblemtype::SubproblemType,
@@ -21,6 +28,13 @@ function run_ccg(
     return run_iterative_continuous_recourse(problem, CCG, subproblemtype, time_limit, opt_tol, feas_tol)
 end
 
+"""
+    run_benders(problem::AbstractProblem, subproblemtype::SubproblemType, time_limit::Float64, opt_tol::Float64 = 1e-4, feas_tol::Float64 = 1e-5)
+
+Solve `problem` using the benders decomposition algorithm using the
+`subproblemtype` subproblem with specified `time_limit` (in seconds) and
+optimality and feasibility tolerances of `opt_tol` and `feas_tol`, respectively.
+"""
 function run_benders(
     problem::AbstractProblem,
     subproblemtype::SubproblemType,
@@ -95,7 +109,7 @@ function run_iterative_continuous_recourse(
                             break
                         end
                         @timeit "solve_second_stage_problem_lagrangian" begin
-                        step = solve_second_stage_problem_lagrangian(problem, MP, SP, λ)
+                            step = solve_second_stage_problem_lagrangian(problem, MP, SP, λ)
                         end
                         if step <= feas_tol
                             UB = min(UB, ub)
@@ -107,7 +121,7 @@ function run_iterative_continuous_recourse(
                 else
                     if subproblemtype == LagrangianDual
                         @timeit "compute_lagrangian_parameter" begin
-                        λ = compute_lagrangian_parameter(problem, MP)
+                            λ = compute_lagrangian_parameter(problem, MP)
                         end
                         SP = build_sp(problem, MP, subproblemtype, λ)
                     else
@@ -177,7 +191,7 @@ function run_ccg_mixed_integer_recourse(
 
                 if subproblemtype == LagrangianDual
                     @timeit "compute_lagrangian_parameter" begin
-                    λ = compute_lagrangian_coefficient(problem, MP_outer)
+                        λ = compute_lagrangian_coefficient(problem, MP_outer)
                     end
                 end
 

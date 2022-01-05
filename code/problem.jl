@@ -1,11 +1,25 @@
-@enum(SubproblemType,
+
+"""
+    SubproblemType
+
+Enum representing the subproblem type. Possible values are `LinearizedKKT`,
+`IndicatorKKT`, `LinearizedDual`, `IndicatorDual` and `LagrangianDual`.
+"""
+@enum(
+    SubproblemType,
     LinearizedKKT,
     IndicatorKKT,
     LinearizedDual,
     IndicatorDual,
     LagrangianDual,
 )
-@enum(MasterType,
+"""
+    MasterType
+
+Enum representing the master problem type. Possible values are `CCG` and `Benders`.
+"""
+@enum(
+    MasterType,
     CCG,
     Benders,
 )

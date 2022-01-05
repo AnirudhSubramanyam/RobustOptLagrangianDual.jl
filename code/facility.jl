@@ -1,3 +1,8 @@
+"""
+    FacilityLocation <: AbstractProblem
+
+Default implementation of `FacilityLocation` problem.
+"""
 struct FacilityLocation <: AbstractProblem
     NumFac::Int
     NumCust::Int

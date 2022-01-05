@@ -1,4 +1,9 @@
 using Random
+"""
+    Rostering <: AbstractProblem
+
+Default implementation of `Rostering` problem.
+"""
 struct Rostering <: AbstractProblem
     I::Int
     J::Int
