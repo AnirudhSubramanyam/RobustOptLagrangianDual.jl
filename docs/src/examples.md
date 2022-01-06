@@ -2,7 +2,7 @@
 CurrentModule = RobustOptLagrangianDual
 ```
 
-# Internals
+# Examples
 ```@autodocs
 Modules = [RobustOptLagrangianDual]
 Order   = [:type, :function]
