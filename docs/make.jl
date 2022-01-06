@@ -11,6 +11,7 @@ makedocs(
         "Home" => "index.md",
         "Library" => [
             "Algorithms" => "algorithms.md",
+            "Solvers" => "solvers.md",
             "Internals" => "internals.md",
             "Examples" => "examples.md",
         ],

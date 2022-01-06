@@ -11,27 +11,31 @@
 ```
 
 ## Installation
-The `RobustOptLagrangianDual.jl` package requires at least one of the following solvers to be installed:
-* [CPLEX.jl](https://github.com/jump-dev/CPLEX.jl)
-* [Gurobi.jl](https://github.com/jump-dev/Gurobi.jl)
-* [Mosek.jl](https://github.com/MOSEK/Mosek.jl)
-
-After installing one of the above, run:
+The package can be installed via:
 ```shell
 $ git clone https://github.com/AnirudhSubramanyam/RobustOpt_LagrangianDual.git
 $ cd RobustOpt_LagrangianDual
+$ julia --project
 ```
-Depending on the solver you want to use, set the `SOLVER` variable in `src/RobustOptLagrangianDual.jl`.
 
 Test the installation by running:
 ```shell
 $ julia --project test/test.jl
 ```
 
+By default, the package uses the open-source solver [Cbc.jl](https://github.com/jump-dev/Cbc.jl).
+One can optionally use one of the following solvers as well, which must be installed separately:
+* [CPLEX](https://github.com/jump-dev/CPLEX.jl)
+* [Gurobi](https://github.com/jump-dev/Gurobi.jl)
+* [Mosek](https://github.com/MOSEK/Mosek.jl)
+
+See also [Solvers](@ref).
+
 ## Documentation and Usage
 ```@contents
 Pages = [
     "algorithms.md",
+    "solvers.md",
     "internals.md",
     "examples.md",
 ]
