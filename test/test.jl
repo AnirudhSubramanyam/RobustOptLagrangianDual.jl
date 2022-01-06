@@ -69,5 +69,5 @@ function test_rostering(scale::Int, budget_range::Vector{Int})
 end
 
 test_facility_location(joinpath(dirname(@__FILE__), "..", "data/CFLP/Cap_F10_C10.txt"), collect(1:2))
-test_network_design(joinpath(dirname(@__FILE__), "..", "data/SNDLIB/dfn-bwin.txt"), collect(1:2))
-test_rostering(1, collect(12:12))
+# test_network_design(joinpath(dirname(@__FILE__), "..", "data/SNDLIB/dfn-bwin.txt"), collect(1:2))
+# test_rostering(1, collect(12:12))

@@ -1,14 +1,14 @@
 
 function gap(ub, lb)
-    return isinf(ub) ? Inf : ((ub - lb)/ub)
+    return isinf(ub) ? Inf : ((ub - lb) / ub)
 end
 
 function print_progress(iter, lb, ub, elapsed_time, λ = nothing, inner = false)
     str = inner ? "\tinner-iter" : "iter"
     if λ === nothing
-        @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec\n", str, iter, lb, ub, gap(ub, lb)*100.0, elapsed_time)
+        @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec\n", str, iter, lb, ub, gap(ub, lb) * 100.0, elapsed_time)
     else
-        @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec λ = %8.2f\n", str, iter, lb, ub, gap(ub, lb)*100.0, elapsed_time, λ)
+        @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec λ = %8.2f\n", str, iter, lb, ub, gap(ub, lb) * 100.0, elapsed_time, λ)
     end
 end
 
@@ -22,6 +22,9 @@ function set_optimizer_time_limit(m::JuMP.Model, time_limit::Float64)
     if SOLVER == "CPLEX"
         JuMP.set_optimizer_attribute(m, "CPXPARAM_TimeLimit", max(time_limit, 0.01))
     end
+    if SOLVER == "Cbc"
+        JuMP.set_optimizer_attribute(m, "seconds", max(time_limit, 0.01))
+    end
 end
 
 function initializeJuMPModel()
@@ -31,7 +34,7 @@ function initializeJuMPModel()
             "MSK_IPAR_LOG" => 0,
             "MSK_DPAR_MIO_TOL_REL_GAP" => 0,
             "MSK_IPAR_NUM_THREADS" => THREADLIM
-            ))
+        ))
     end
     if SOLVER == "Gurobi"
         return Model(optimizer_with_attributes(
@@ -47,6 +50,14 @@ function initializeJuMPModel()
             "CPXPARAM_ScreenOutput" => 0,
             "CPXPARAM_MIP_Tolerances_MIPGap" => 0,
             "CPXPARAM_Threads" => THREADLIM
+        ))
+    end
+    if SOLVER == "Cbc"
+        return Model(optimizer_with_attributes(
+            Cbc.Optimizer,
+            "logLevel" => 0,
+            "ratioGap" => 0,
+            "threads" => THREADLIM
         ))
     end
 end

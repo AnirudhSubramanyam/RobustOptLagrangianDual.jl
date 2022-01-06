@@ -2,6 +2,8 @@ using RobustOptLagrangianDual
 using TimerOutputs
 using ArgParse, JLD2, DelimitedFiles
 
+set_num_threads(8)
+set_solver_Gurobi()
 
 function parse_commandline(args)
     s = ArgParseSettings()
