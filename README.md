@@ -11,4 +11,4 @@
 }
 ```
 
-Please refer to the [documentation](https://anirudhsubramanyam.github.io/RobustOpt_LagrangianDual/) for installation, usage and examples.
+Please refer to the [documentation](https://anirudhsubramanyam.github.io/RobustOptLagrangianDual.jl/) for installation, usage and examples.

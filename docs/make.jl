@@ -20,6 +20,6 @@ makedocs(
 
 deploydocs(
     devbranch = "main",
-    repo = "github.com/AnirudhSubramanyam/RobustOpt_LagrangianDual.git",
+    repo = "github.com/AnirudhSubramanyam/RobustOptLagrangianDual.jl.git",
 )
 
