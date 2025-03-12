@@ -322,6 +322,65 @@ function build_feasibility_sp(ND::NetworkDesign, MP::JuMP.Model, subproblem::Sub
     end
 end
 
+function build_checking_sp(ND::NetworkDesign, MP::JuMP.Model)
+    feasibility = false
+    u = JuMP.value.(MP[:u])
+
+    SP = initializeJuMPModel()
+    if feasibility
+        @variable(SP, -1 <= μ[ND.Nodes] <= 1)
+        @variable(SP, -1 <= vb[ND.Edges] <= 0)
+        @variable(SP, -1 <= vf[ND.Edges] <= 0)
+    else
+        @variable(SP, μ[ND.Nodes])
+        @variable(SP, vb[ND.Edges] <= 0)
+        @variable(SP, vf[ND.Edges] <= 0)
+    end
+    @variable(SP, z[ND.Edges], Bin)
+    @variable(SP, ρ[ND.Edges] >= 0)
+
+    # objective
+    if feasibility
+        @objective(SP, Max,
+            +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges)
+            +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges)
+            +sum(ND.Demand[i]*μ[i] for i in ND.Nodes)
+        )
+    else
+        @objective(SP, Max,
+            +sum((ND.PerUnitCapCost[e]*u[e]) for e in ND.Edges if e ∉ ND.DisAllowCap)
+            +sum((ND.PreInstalledCap[e]+u[e])*vb[e] for e in ND.Edges)
+            +sum((ND.PreInstalledCap[e]+u[e])*vf[e] for e in ND.Edges)
+            +sum(ND.Demand[i]*μ[i] for i in ND.Nodes)
+        )
+    end
+
+    # uncertainty set
+    @constraint(SP, sum(z[e] for e in ND.Edges) <= ND.budget)
+    @constraint(SP, [i in ND.Nodes; abs(ND.ObjScale*ND.Demand[i]) > 1e-3],
+        sum(z[e]-1 for e in ND.Edges if ND.Dest[e] == i) + sum(z[e]-1 for e in ND.Edges if ND.Orig[e] == i) <= - 1
+    )
+
+    # dual feasibility
+    @constraint(SP, [e in ND.Edges],
+        vb[e] + μ[ND.Orig[e]] - μ[ND.Dest[e]] <= (feasibility ? 0 : ND.PerUnitTrCost[e]) + (ρ[e])
+    )
+    @constraint(SP, [e in ND.Edges],
+        vf[e] - μ[ND.Orig[e]] + μ[ND.Dest[e]] <= (feasibility ? 0 : ND.PerUnitTrCost[e]) + (ρ[e])
+    )
+
+    # indicators
+    @constraint(SP, [e in ND.Edges],
+        !z[e] => {ρ[e] == 0}
+    )
+
+    return SP
+end
+
+function init_lagrangian_coefficient(ND::NetworkDesign, SP::JuMP.Model)
+    return maximum(value.(SP[:ρ]))
+end
+
 function solve_second_stage_problem_lagrangian(ND::NetworkDesign, MP::JuMP.Model, SP::JuMP.Model, λ::Float64)
     u = JuMP.value.(MP[:u])
     z = JuMP.value.(SP[:z])

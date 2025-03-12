@@ -317,6 +317,46 @@ function build_sp(FL::FacilityLocation, MP::JuMP.Model, subproblem::SubproblemTy
     return SP
 end
 
+function build_checking_sp(FL::FacilityLocation, MP::JuMP.Model)
+    y = JuMP.value.(MP[:y])
+    y = Float64.(Int.(round.(y))) # should be 0-1
+    SP = initializeJuMPModel()
+
+    # dual variables (common to all)
+    @variable(SP, α[FL.Customers] >= 0)
+    @variable(SP, β[FL.Facilities] >= 0)
+    @variable(SP, z[FL.Facilities], Bin)
+    @variable(SP, ρ[FL.Facilities] >= 0)
+
+    # uncertainty set
+    @constraint(SP, sum(z[j] for j in FL.Facilities) <= FL.budget)
+
+    # dual feasibility
+    @constraint(SP, [i in FL.Customers, j in FL.Facilities],
+        α[i] - β[j] <= FL.Distance[(i,j)] + (ρ[j])
+    )
+    @constraint(SP, [i in FL.Customers],
+        α[i] <= FL.PenaltyCost[i]
+    )
+    # indicators
+    @constraint(SP, [j in FL.Facilities],
+        !z[j] => {ρ[j] == 0}
+    )
+
+    # objective
+    @objective(SP, Max,
+        +sum(FL.FixedCost[j]*y[j] for j in FL.Facilities)
+        +sum(FL.Demand[i]*α[i] for i in FL.Customers)
+        -sum(FL.Capacity[j]*y[j]*β[j] for j in FL.Facilities)
+    )
+
+    return SP
+end
+
+function init_lagrangian_coefficient(FL::FacilityLocation, SP::JuMP.Model)
+    return maximum(value.(SP[:ρ]))
+end
+
 function solve_second_stage_problem_lagrangian(FL::FacilityLocation, MP::JuMP.Model, SP::JuMP.Model, λ::Float64)
     y = JuMP.value.(MP[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1

@@ -114,11 +114,33 @@ and `false` otherwise.
 function record_scenario end
 
 """
+    record_discrete_second_stage_decision(problem::AbstractProblem, SP::JuMP.Model, discrete_decision_list::Dict)
+
+Record the optimal discrete second-stage decisions from the solved
+subproblem model `SP` in the `discrete_decision_list` dictionary.
+
+Return `true` if the decision already existed in `discrete_decision_list`
+and `false` otherwise.
+
+Must be implemented if `mixed_integer_recourse(problem) == true`.
+"""
+function record_discrete_second_stage_decision end
+
+"""
     init_master(problem::AbstractProblem)
 
 Initialize the (outer-level) master model with variables and constraints.
 """
 function init_master end
+
+"""
+    function init_lagrangian_coefficient(problem::AbstractProblem, P::JuMP.Model)
+
+Return an optimal Lagrangian coefficient computing using the solved JuMP model `P`
+built using either `build_checking_sp` if `mixed_integer_recourse(problem) == false`
+or `build_master_inner_level_check` if `mixed_integer_recourse(problem) == true`.
+"""
+function init_lagrangian_coefficient end
 
 """
     update_master_continuous(problem::AbstractProblem, MP::JuMP.Model, SP::JuMP.Model, master::MasterType, subproblem::SubproblemType)
@@ -162,19 +184,38 @@ Must be implemented if `mixed_integer_recourse(problem) == false && complete_rec
 function build_feasibility_sp end
 
 """
-    init_master_inner_level(R::Rostering)
-    init_master_inner_level(R::Rostering, MP_inner::JuMP.Model)
+    build_checking_sp(problem::AbstractProblem, MP::JuMP.Model)
+
+Return the JuMP model of the optimality type subproblem, which also computes an
+optimal Lagrangian coefficient based on the optimal values of the solved
+master problem `MP`.
+
+Must be implemented if `mixed_integer_recourse(problem) == false`.
+"""
+function build_checking_sp end
+
+"""
+    init_master_inner_level(problem::AbstractProblem)
+    init_master_inner_level(problem::AbstractProblem, MP_inner::JuMP.Model)
+    init_master_inner_level(problem::AbstractProblem, MP_outer::JuMP.Model, discrete_decision_list::Dict, master_inner::SubproblemType, λ = nothing)
 
 Initialize the inner-level master model with variables and constraints.
 
 Must be implemented if `mixed_integer_recourse(problem) == true`.
-When `MP_inner` is specified, the variable values must be fixed to
-optimal values of the inner-level master model `MP_inner`.
+
+In the second version, the variable values must be fixed to
+optimal values of the solved inner-level master model `MP_inner`.
+
+In the third version, the model must be built using the
+first-stage decisions in the solved outer-level master model `MP_outer`,
+the discrete second-stage decisions stored in the `discrete_decision_list`
+dictionary, and the `master_inner` type of the inner-level master model.
+The Lagrangian coefficient `λ` must be `Float64` if `master_inner == LagrangianDual`.
 """
 function init_master_inner_level end
 
 """
-    update_master_inner_level(R::Rostering, MP_inner::JuMP.Model, MP_outer::JuMP.Model, SP::JuMP.Model, master_inner::SubproblemType, λ = nothing)
+    update_master_inner_level(problem::AbstractProblem, MP_inner::JuMP.Model, MP_outer::JuMP.Model, SP::JuMP.Model, master_inner::SubproblemType, λ = nothing)
 
 Update the inner-level master model `MP_inner` based on the optimal values
 of the outer-level master model `MP_outer`, the subproblem model `SP`, and
@@ -185,4 +226,15 @@ The Lagrangian coefficient `λ` must be `Float64` if `master_inner == Lagrangian
 Must be implemented if `mixed_integer_recourse(problem) = true`.
 """
 function update_master_inner_level end
+
+"""
+    build_master_inner_level_check(problem::AbstractProblem, MP_outer::JuMP.Model, discrete_decision_list::Dict)
+
+Return the JuMP model of the inner-level master problem,
+which also computes an optimal Lagrangian coefficient,
+based on the optimal values of the solved outer-level master problem `MP_outer`.
+
+Must be implemented if `mixed_integer_recourse(problem) = true`.
+"""
+function build_master_inner_level_check end
 

@@ -3,7 +3,7 @@ function gap(ub, lb)
     return isinf(ub) ? Inf : ((ub - lb) / ub)
 end
 
-function print_progress(iter, lb, ub, elapsed_time, λ = nothing, inner = false)
+function print_progress(iter, lb, ub, elapsed_time, λ=nothing, inner=false)
     str = inner ? "\tinner-iter" : "iter"
     if λ === nothing
         @printf("%s %3d: LB = %8.2e UB = %8.2e gap = %8.2f%% time=%8.1fsec\n", str, iter, lb, ub, gap(ub, lb) * 100.0, elapsed_time)
@@ -37,12 +37,14 @@ function initializeJuMPModel()
         ))
     end
     if SOLVER == "Gurobi"
-        return Model(optimizer_with_attributes(
-            with_optimizer(Gurobi.Optimizer, GUROBI_ENV),
+        m = Model(optimizer_with_attributes(
+            () -> Gurobi.Optimizer(GUROBI_ENV),
             "OutputFlag" => 0,
             "MIPGap" => 0,
             "Threads" => THREADLIM
         ))
+        JuMP.set_silent(m)
+        return m
     end
     if SOLVER == "CPLEX"
         return Model(optimizer_with_attributes(

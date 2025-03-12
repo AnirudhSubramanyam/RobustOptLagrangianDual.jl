@@ -224,13 +224,34 @@ function init_master_inner_level(R::Rostering, MP_inner::JuMP.Model)
     return m
 end
 
+function init_master_inner_level(R::Rostering, MP_outer::JuMP.Model, discrete_decision_list::Dict, master_inner::SubproblemType, λ = nothing)
+    m = init_master_inner_level(R)
+    x = JuMP.value.(MP_outer[:x])
+    x = Float64.(Int.(round.(x))) # should be 0-1
+
+    for schedule in keys(discrete_decision_list)
+        y = zeros(R.J, R.T)
+        for (j, t) in schedule
+            y[j,t] = 1
+        end
+        update_master_inner_level(R, m, x, y, master_inner, λ)
+    end
+
+    return m
+end
+
 function update_master_inner_level(R::Rostering, MP_outer::JuMP.Model, MP_inner::JuMP.Model, SP_inner::JuMP.Model, master_inner::SubproblemType, λ = nothing)
-    s = MP_inner[:s]
-    g = MP_inner[:g]
     x = JuMP.value.(MP_outer[:x])
     x = Float64.(Int.(round.(x))) # should be 0-1
     y = JuMP.value.(SP_inner[:y])
     y = Float64.(Int.(round.(y))) # should be 0-1
+
+    update_master_inner_level(R, MP_inner, x, y, master_inner, λ)
+end
+
+function update_master_inner_level(R::Rostering, MP_inner::JuMP.Model, x, y, master_inner::SubproblemType, λ = nothing)
+    s = MP_inner[:s]
+    g = MP_inner[:g]
 
     # dual variables (common to all)
     α = @variable(MP_inner, [1:R.J,1:R.T], lower_bound = 0)
@@ -388,6 +409,57 @@ function update_master_inner_level(R::Rostering, MP_outer::JuMP.Model, MP_inner:
     end
 end
 
+function build_master_inner_level_check(R::Rostering, MP_outer::JuMP.Model, discrete_decision_list::Dict)
+    MP_inner_check = init_master_inner_level(R)
+    s = MP_inner_check[:s]
+    g = MP_inner_check[:g]
+
+    x = JuMP.value.(MP_outer[:x])
+    x = Float64.(Int.(round.(x))) # should be 0-1
+
+    y_all = collect(keys(discrete_decision_list))
+    V = length(y_all)
+
+    # dual variables (common to all)
+    α = @variable(MP_inner_check, [1:V,1:R.J,1:R.T], lower_bound = 0)
+    β = @variable(MP_inner_check, [1:V,1:R.T], lower_bound = 0)
+
+    @constraint(MP_inner_check, [v in 1:V, j in 1:R.J, t in 1:R.T],
+        -α[v,j,t] + β[v,t] <= R.HourlyCostPartTime[j,t]
+    )
+    @constraint(MP_inner_check, [v in 1:V, t in 1:R.T],
+        β[v,t] <= R.PenaltyCost[t]
+    )
+
+    @variable(MP_inner_check, γ[1:V,1:R.T])
+    for v in 1:V
+        y = zeros(R.J, R.T)
+        for (j, t) in y_all[v]
+            y[j,t] = 1
+        end
+        @constraint(MP_inner_check,
+            s <= sum(R.FixedCostRegular[i,t]*x[i,t] for i in 1:R.I, t in 1:R.T)
+                +sum(R.FixedCostPartTime[j,t]*y[j,t] for j in 1:R.J, t in 1:R.T)
+                -sum(R.N*y[j,t]*α[v,j,t] for j in 1:R.J, t in 1:R.T)
+                +sum(R.DemandAvg[t]*β[v,t] for t in 1:R.T)
+                -sum(R.N*x[i,t]*β[v,t] for i in 1:R.I, t in 1:R.T)
+                +sum(γ[v,t] for t in 1:R.T)
+        )
+        @constraint(MP_inner_check, [t in 1:R.T],
+            !g[t] => {γ[v,t] <=  0}
+        )
+        @constraint(MP_inner_check, [t in 1:R.T],
+            g[t] => {γ[v,t] <= (R.DemandDev[t]*β[v,t])}
+        )
+    end
+
+    return MP_inner_check
+end
+
+function init_lagrangian_coefficient(R::Rostering, MP_inner_check::JuMP.Model)
+    return maximum(value.(MP_inner_check[:γ]))
+end
+
 function compute_lagrangian_coefficient(R::Rostering, MP_outer::JuMP.Model)
     x = JuMP.value.(MP_outer[:x])
     x = Float64.(Int.(round.(x))) # should be 0-1
@@ -489,6 +561,24 @@ function solve_second_stage_problem_lagrangian(R::Rostering, MP_outer::JuMP.Mode
     step = sum(((1 - 2g[t])*value(u[t])) + g[t] for t in 1:R.T)
 
     return step
+end
+
+function record_discrete_second_stage_decision(R::Rostering, SP_inner::JuMP.Model, discrete_decision_list::Dict)
+    y = JuMP.value.(SP_inner[:y])
+    y = Float64.(Int.(round.(y))) # should be 0-1
+    schedule = Vector{Tuple{Int, Int}}()
+    for j in 1:R.J, t in 1:R.T
+        if y[j,t] == 1
+            push!(schedule, (j,t))
+        end
+    end
+    in_list = true
+    if !haskey(discrete_decision_list, schedule)
+        in_list = false
+        discrete_decision_list[schedule] = true
+    end
+
+    return in_list
 end
 
 function record_scenario(R::Rostering, MP_inner::JuMP.Model, scenario_list::Dict)

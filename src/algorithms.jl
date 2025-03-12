@@ -11,8 +11,8 @@ function run_ccg(
     problem::AbstractProblem,
     subproblemtype::SubproblemType,
     time_limit::Float64,
-    opt_tol::Float64 = 1e-4,
-    feas_tol::Float64 = 1e-5,
+    opt_tol::Float64=1e-4,
+    feas_tol::Float64=1e-5,
 )
     if mixed_integer_recourse(problem)
         if !complete_recourse(problem)
@@ -41,8 +41,8 @@ function run_benders(
     problem::AbstractProblem,
     subproblemtype::SubproblemType,
     time_limit::Float64,
-    opt_tol::Float64 = 1e-4,
-    feas_tol::Float64 = 1e-5,
+    opt_tol::Float64=1e-4,
+    feas_tol::Float64=1e-5,
 )
     if mixed_integer_recourse(problem)
         @error("Benders algorithm invalid for problems with mixed-integer recourse")
@@ -101,7 +101,7 @@ function run_iterative_continuous_recourse(
 
             # Optimality subproblem
             if !found_infeasible_scenario
-                if subproblemtype == LagrangianDual && indicator_uncertainty(problem)
+                if subproblemtype == LagrangianDual
                     normal_termination = true
                     while true
                         SP = build_sp(problem, MP, subproblemtype, λ)
@@ -121,17 +121,23 @@ function run_iterative_continuous_recourse(
                     end
                     normal_termination || break
                 else
-                    if subproblemtype == LagrangianDual
-                        @timeit "compute_lagrangian_parameter" begin
-                            λ = compute_lagrangian_parameter(problem, MP)
-                        end
-                        SP = build_sp(problem, MP, subproblemtype, λ)
-                    else
-                        SP = build_sp(problem, MP, subproblemtype)
-                    end
+                    SP = build_sp(problem, MP, subproblemtype)
                     ub = solve_SP(problem, SP, time_limit - (time() - start_t))
                     !isfinite(ub) && break  # non-normal termination
                     UB = min(UB, ub)
+                end
+            end
+
+            # Check optimality of the Lagrangian multiplier
+            if subproblemtype == LagrangianDual && !found_infeasible_scenario && gap(UB, LB) <= opt_tol
+                @timeit "check_lagrangian_parameter" begin
+                    SP = build_checking_sp(problem, MP)
+                    zb = solve_SP(problem, SP, time_limit - (time() - start_t))
+                    λbar = init_lagrangian_coefficient(problem, SP)
+                    if gap(zb, UB) > opt_tol && gap(λbar, λ) > opt_tol
+                        UB = zb
+                        λ = λbar
+                    end
                 end
             end
 
@@ -190,10 +196,11 @@ function run_ccg_mixed_integer_recourse(
                 UB_inner = +Inf
                 MP_inner = init_master_inner_level(problem)
                 MP_inner_opt = nothing
+                discrete_decision_list = Dict()
 
                 if subproblemtype == LagrangianDual
                     @timeit "compute_lagrangian_parameter" begin
-                        λ = compute_lagrangian_coefficient(problem, MP_outer)
+                        λ = max(λ, compute_lagrangian_coefficient(problem, MP_outer))
                     end
                 end
 
@@ -222,9 +229,33 @@ function run_ccg_mixed_integer_recourse(
                         #     break
                         # end
                     end
-                    # if subproblemtype == LagrangianDual
-                    #     @assert solve_second_stage_problem_lagrangian(problem, MP_outer, MP_inner, λ) <= feas_tol
-                    # end
+                    if subproblemtype == LagrangianDual
+                        record_discrete_second_stage_decision(problem, SP, discrete_decision_list)
+                        while true
+                            @timeit "solve_second_stage_problem_lagrangian" begin
+                                step = solve_second_stage_problem_lagrangian(problem, MP_outer, MP_inner, λ)
+                            end
+                            if step <= feas_tol
+                                break
+                            end
+                            λ *= 2.0
+                        end
+
+                        # Check optimality of the Lagrangian multiplier
+                        if gap(UB_inner, LB_inner) <= opt_tol && gap(UB, LB) <= opt_tol
+                            @timeit "check_lagrangian_parameter" begin
+                                MP_inner_check = build_master_inner_level_check(problem, MP_outer, discrete_decision_list)
+                                zb = solve_MP(problem, MP_inner_check, time_limit)
+                                λbar = init_lagrangian_coefficient(problem, MP_inner_check)
+                                if gap(zb, UB) > opt_tol && gap(λbar, λ) > opt_tol
+                                    UB = zb
+                                    λ = λbar
+                                    MP_inner = init_master_inner_level(problem, MP_outer, discrete_decision_list, subproblemtype, λ)
+                                    continue
+                                end
+                            end
+                        end
+                    end
 
                     # Print progress
                     print_progress(iter_inner[end], LB_inner, UB_inner, time() - start_t, λ, true)
