@@ -1,13 +1,13 @@
 using Documenter, RobustOptLagrangianDual
 
 makedocs(
-    sitename = "RobustOptLagrangianDual.jl",
-    format = Documenter.HTML(
-        prettyurls = Base.get(ENV, "CI", nothing) == "true",
-        mathengine = Documenter.KaTeX()
+    sitename="RobustOptLagrangianDual.jl",
+    format=Documenter.HTML(
+        prettyurls=Base.get(ENV, "CI", nothing) == "true",
+        mathengine=Documenter.KaTeX()
     ),
-    strict = true,
-    pages = [
+    strict=true,
+    pages=[
         "Home" => "index.md",
         "Library" => [
             "Algorithms" => "algorithms.md",
@@ -19,7 +19,7 @@ makedocs(
 )
 
 deploydocs(
-    devbranch = "main",
-    repo = "github.com/AnirudhSubramanyam/RobustOptLagrangianDual.jl.git",
+    devbranch="main",
+    repo="github.com/AnirudhSubramanyam/RobustOptLagrangianDual.jl",
 )
 
