@@ -33,7 +33,7 @@ Test the installation by running:
 $ julia --project test/test.jl
 ```
 
-By default, the package uses the open-source solver [Cbc](https://github.com/jump-dev/Cbc.jl).
+By default, the package uses the [SCIP](https://github.com/scipopt/SCIP.jl) solver.
 One can optionally use one of the following solvers as well, which must be installed separately:
 * [CPLEX](https://github.com/jump-dev/CPLEX.jl)
 * [Gurobi](https://github.com/jump-dev/Gurobi.jl)

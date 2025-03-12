@@ -1,6 +1,9 @@
 using RobustOptLagrangianDual
 using Printf, TimerOutputs
 
+set_num_threads(8)
+set_solver_SCIP()
+
 function test_facility_location(instance::String, budget_range::Vector{Int})
     time_limit = 3600.0
     info_d = Tuple{Int,Float64,Float64,Float64}[]

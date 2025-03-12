@@ -131,12 +131,16 @@ function run_iterative_continuous_recourse(
             # Check optimality of the Lagrangian multiplier
             if subproblemtype == LagrangianDual && !found_infeasible_scenario && gap(UB, LB) <= opt_tol
                 @timeit "check_lagrangian_parameter" begin
-                    SP = build_checking_sp(problem, MP)
-                    zb = solve_SP(problem, SP, time_limit - (time() - start_t))
-                    λbar = init_lagrangian_coefficient(problem, SP)
-                    if gap(zb, UB) > opt_tol && gap(λbar, λ) > opt_tol
-                        UB = zb
-                        λ = λbar
+                    try
+                        SP = build_checking_sp(problem, MP)
+                        zb = solve_SP(problem, SP, time_limit - (time() - start_t))
+                        λbar = init_lagrangian_coefficient(problem, SP)
+                        if gap(zb, UB) > opt_tol && gap(λbar, λ) > opt_tol
+                            UB = zb
+                            λ = λbar
+                        end
+                    catch
+                        @warn("Unable to build and/or solve indicator constrained model. You may want to try a different solver.")
                     end
                 end
             end
@@ -244,14 +248,18 @@ function run_ccg_mixed_integer_recourse(
                         # Check optimality of the Lagrangian multiplier
                         if gap(UB_inner, LB_inner) <= opt_tol && gap(UB, LB) <= opt_tol
                             @timeit "check_lagrangian_parameter" begin
-                                MP_inner_check = build_master_inner_level_check(problem, MP_outer, discrete_decision_list)
-                                zb = solve_MP(problem, MP_inner_check, time_limit)
-                                λbar = init_lagrangian_coefficient(problem, MP_inner_check)
-                                if gap(zb, UB) > opt_tol && gap(λbar, λ) > opt_tol
-                                    UB = zb
-                                    λ = λbar
-                                    MP_inner = init_master_inner_level(problem, MP_outer, discrete_decision_list, subproblemtype, λ)
-                                    continue
+                                try
+                                    MP_inner_check = build_master_inner_level_check(problem, MP_outer, discrete_decision_list)
+                                    zb = solve_MP(problem, MP_inner_check, time_limit)
+                                    λbar = init_lagrangian_coefficient(problem, MP_inner_check)
+                                    if gap(zb, UB) > opt_tol && gap(λbar, λ) > opt_tol
+                                        UB = zb
+                                        λ = λbar
+                                        MP_inner = init_master_inner_level(problem, MP_outer, discrete_decision_list, subproblemtype, λ)
+                                        continue
+                                    end
+                                catch
+                                    @warn("Unable to build and/or solve indicator constrained model. You may want to try a different solver.")
                                 end
                             end
                         end

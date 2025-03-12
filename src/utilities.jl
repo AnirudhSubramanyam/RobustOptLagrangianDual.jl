@@ -22,8 +22,8 @@ function set_optimizer_time_limit(m::JuMP.Model, time_limit::Float64)
     if SOLVER == "CPLEX"
         JuMP.set_optimizer_attribute(m, "CPXPARAM_TimeLimit", max(time_limit, 0.01))
     end
-    if SOLVER == "Cbc"
-        JuMP.set_optimizer_attribute(m, "seconds", max(time_limit, 0.01))
+    if SOLVER == "SCIP"
+        JuMP.set_optimizer_attribute(m, "limits/time", max(time_limit, 0.01))
     end
 end
 
@@ -54,12 +54,12 @@ function initializeJuMPModel()
             "CPXPARAM_Threads" => THREADLIM
         ))
     end
-    if SOLVER == "Cbc"
+    if SOLVER == "SCIP"
         return Model(optimizer_with_attributes(
-            Cbc.Optimizer,
-            "logLevel" => 0,
-            "ratioGap" => 0,
-            "threads" => THREADLIM
+            SCIP.Optimizer,
+            "display/verblevel" => 0,
+            "limits/gap" => 0,
+            "parallel/maxnthreads" => THREADLIM
         ))
     end
 end
